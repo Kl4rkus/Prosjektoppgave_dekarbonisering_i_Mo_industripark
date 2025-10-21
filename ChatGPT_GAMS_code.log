@@ -1,0 +1,113 @@
+
+--- Job ChatGPT_GAMS_code.gms Start 10/21/25 10:22:37 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\39\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    PageSize 0
+    ScrDir C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\
+    SysDir C:\GAMS\39\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
+          Norwegian University of Science and Technology             DC7530
+          C:\Users\karl\Documents\GAMS\gamslice.txt
+          License Admin: Ruud Egging, ruud.egging@ntnu.no                  
+Processor information: 1 socket(s), 10 core(s), and 20 thread(s) available
+GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- ChatGPT_GAMS_code.gms(377) 3 Mb 1 Error
+*** Error 148 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Dimension different - The symbol is referenced with more/less
+       indices as declared
+--- ChatGPT_GAMS_code.gms(380) 3 Mb 2 Errors
+*** Error 148 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Dimension different - The symbol is referenced with more/less
+       indices as declared
+--- ChatGPT_GAMS_code.gms(383) 3 Mb 3 Errors
+*** Error 148 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Dimension different - The symbol is referenced with more/less
+       indices as declared
+--- ChatGPT_GAMS_code.gms(406) 3 Mb 5 Errors
+*** Error 143 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    A suffix is missing
+*** Error  36 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    '=' or '..' or ':=' or '$=' operator expected
+    rest of statement ignored
+--- ChatGPT_GAMS_code.gms(410) 3 Mb 6 Errors
+*** Error 257 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Solve statement not checked because of previous errors
+--- ChatGPT_GAMS_code.gms(413) 3 Mb 12 Errors
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- ChatGPT_GAMS_code.gms(414) 3 Mb 17 Errors
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatGPT_GAMS_code.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- ChatGPT_GAMS_code.gms(414) 3 Mb 17 Errors
+*** Status: Compilation error(s)
+--- Job ChatGPT_GAMS_code.gms Stop 10/21/25 10:22:37 elapsed 0:00:00.004
