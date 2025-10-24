@@ -1,0 +1,63 @@
+
+--- Job ChatPT_GAMS_code_v3.gms Start 10/24/25 14:48:45 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\39\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms"
+    PageSize 0
+    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    SysDir C:\GAMS\39\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
+          Norwegian University of Science and Technology             DC7530
+          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          License Admin: Ruud Egging, ruud.egging@ntnu.no                  
+Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- ChatPT_GAMS_code_v3.gms(254) 3 Mb 1 Error
+*** Error 140 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Unknown symbol
+--- ChatPT_GAMS_code_v3.gms(395) 3 Mb 2 Errors
+*** Error 257 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Solve statement not checked because of previous errors
+--- ChatPT_GAMS_code_v3.gms(410) 3 Mb 4 Errors
+*** Error 141 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- ChatPT_GAMS_code_v3.gms(427) 3 Mb 6 Errors
+*** Error 141 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- ChatPT_GAMS_code_v3.gms(428) 3 Mb 7 Errors
+*** Error 141 in C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- ChatPT_GAMS_code_v3.gms(436) 3 Mb 7 Errors
+*** Status: Compilation error(s)
+--- Job ChatPT_GAMS_code_v3.gms Stop 10/24/25 14:48:45 elapsed 0:00:00.000

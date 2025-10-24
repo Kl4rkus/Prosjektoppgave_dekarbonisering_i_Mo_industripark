@@ -1,0 +1,72 @@
+
+--- Job ChatPT_GAMS_code_v4.gms Start 10/24/25 15:03:24 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\39\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v4.gms"
+    PageSize 0
+    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    SysDir C:\GAMS\39\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
+          Norwegian University of Science and Technology             DC7530
+          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          License Admin: Ruud Egging, ruud.egging@ntnu.no                  
+Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- ChatPT_GAMS_code_v4.gms(435) 3 Mb
+--- Starting execution: elapsed 0:00:00.000
+--- ChatPT_GAMS_code_v4.gms(389) 4 Mb
+--- Generating LP model FeMn_SiMn_Opt
+--- ChatPT_GAMS_code_v4.gms(394) 4 Mb
+---   69 rows  78 columns  236 non-zeroes
+--- Range statistics (absolute non-zero finite values)
+--- RHS       [min, max] : [ 1.000E+03, 1.200E+05] - Zero values observed as well
+--- Bound     [min, max] : [        NA,        NA] - Zero values observed as well
+--- Matrix    [min, max] : [ 1.000E-02, 3.330E+04]
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.025
+
+IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
+
+--- GAMS/Cplex licensed for continuous and discrete problems.
+--- GMO setup time: 0.00s
+--- GMO memory 0.52 Mb (peak 0.52 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.0.0 link memory 0.00 Mb (peak 0.01 Mb)
+--- Starting Cplex
+
+Version identifier: 22.1.0.0 | 2022-03-09 | 1a383f8ce
+CPXPARAM_Advance                                 0
+CPXPARAM_Threads                                 1
+CPXPARAM_MIP_Display                             4
+CPXPARAM_MIP_Pool_Capacity                       0
+CPXPARAM_MIP_Tolerances_AbsMIPGap                0
+Tried aggregator 1 time.
+LP Presolve eliminated 53 rows and 62 columns.
+Aggregator did 7 substitutions.
+Reduced LP has 8 rows, 9 columns, and 30 nonzeros.
+Presolve time = 0.00 sec. (0.06 ticks)
+Initializing dual steep norms . . .
+
+Iteration log . . .
+Iteration:     1   Dual objective     =        114488.489209
+
+--- LP status (1): optimal.
+--- Cplex Time: 0.00sec (det. 0.09 ticks)
+
+
+Optimal solution found
+Objective:      1027951.971223
+
+--- Reading solution for model FeMn_SiMn_Opt
+--- Executing after solve: elapsed 0:00:00.116
+--- ChatPT_GAMS_code_v4.gms(396) 4 Mb
+--- GDX File (execute_unload) C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
+--- ChatPT_GAMS_code_v4.gms(435) 4 Mb
+*** Status: Normal completion
+--- Job ChatPT_GAMS_code_v4.gms Stop 10/24/25 15:03:24 elapsed 0:00:00.117

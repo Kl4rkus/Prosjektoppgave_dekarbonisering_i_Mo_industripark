@@ -1,0 +1,480 @@
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 10/24/25 14:48:45 Page 1
+FeMn / SiMn production & energy system (u_fuel in tonnes, phi in kWh/t)
+C o m p i l a t i o n
+
+
+   2   
+   3  *-----------------------------*
+   4  * Sets and indices            *
+   5  *-----------------------------*
+   6  Set
+   7      t        "time periods" / t1 /
+   8      ti (t)
+   9      s        "SAF units"     / s1, s2 /
+  10      fuel_all "all fuels"
+  11  / oil, biooil, woodchips, coke, COgas, hydrogen, natgas, biogas, biochar /;
+  12   
+  13  * fuel_lt and fuel_ht are subsets of fuel_all
+  14  Set fuel_lt(fuel_all) "low-temp fuels"  / oil, biooil, woodchips /;
+  15  Set fuel_ht(fuel_all) "high-temp fuels" / coke, COgas, hydrogen, natgas, biogas, biochar /;
+  16   
+  17  Alias (t,tt);
+  18   
+  19  *-----------------------------*
+  20  * Parameters (data inputs)    *
+  21  *-----------------------------*
+  22   
+  23  * Demands
+  24  Parameter
+  25      D_FeMn(t)    "FeMn demand (t)"
+  26      D_SiMn(t)    "SiMn demand (t)";
+  27   
+  28  * Yields
+  29  Scalar
+  30      Y_ore_to_sinter      "ore per t sinter"
+  31      Y_sinter_to_FeMn     "sinter per t FeMn"
+  32      Y_sinter_to_slag     "slag per t sinter used";
+  33   
+  34  * Off-gas yield (t off-gas per t fuel in SAF)
+  35  Parameter
+  36      Y_offgas(s,t,fuel_all)  "off-gas yield (t/t fuel)";
+  37   
+  38  * Off-gas yield (t off-gas per t fuel in SAF) – SiMn path
+  39  Parameter
+  40      Y_offgas_smn(s,t,fuel_all)  "off-gas yield in SiMn path (t/t fuel)";
+  41   
+  42  * Emission factors and off-gas sink
+  43  Scalar
+  44      EF_coke_sint  "t CO2 per t sinter output"
+  45      EF_flare      "t CO2 per t off-gas flared";
+  46  Parameter
+  47      D_offgas(t)   "off-gas demand (t)";
+  48   
+  49  * Electricity intensities (kWh per t product)
+  50  Parameter
+  51      eta_SAF_FeMn(s,t)  "kWh per t FeMn"
+  52      nu_SAF_SiMn(s,t)   "kWh per t SiMn";
+  53  Scalar
+  54      eta_sint           "kWh per t sinter";
+  55   
+  56  * Total thermal heat required per tonne of product (kWh/t)
+  57  Parameter
+  58      TCF_FeMn(s,t)   "total heat per t FeMn (kWh/t)"
+  59      TCF_SiMn(s,t)   "total heat per t SiMn (kWh/t)"
+  60      TCF_sint(t)     "total heat per t sinter (kWh/t)";
+  61   
+  62  * Minimum HT requirements (kWh per t product)
+  63  Parameter
+  64      A_SAF_HT_req(s)       "min HT for FeMn (kWh/t product)"
+  65      A_SAF_SiMn_HT_req(s)  "min HT for SiMn (kWh/t product)";
+  66  Scalar
+  67      A_sint_HT_req         "min HT for sinter (kWh/t product)";
+  68   
+  69  * Fuel-to-heat conversion factors (phi = kWh produced per t fuel)
+  70  Parameter
+  71      phi_saf_lt(s,t,fuel_lt)       "LT heat from LT fuels in SAF (FeMn) [kWh/t fuel]"
+  72      phi_saf_ht(s,t,fuel_ht)       "HT heat from HT fuels in SAF (FeMn) [kWh/t fuel]"
+  73      phi_saf_smn_lt(s,t,fuel_all)  "LT heat from fuels in SAF (SiMn)   [kWh/t fuel]"
+  74      phi_saf_smn_ht(s,t,fuel_all)  "HT heat from fuels in SAF (SiMn)   [kWh/t fuel]"
+  75      phi_sint_lt(t,fuel_lt)        "LT heat from LT fuels in sinter    [kWh/t fuel]"
+  76      phi_sint_ht(t,fuel_ht)        "HT heat from HT fuels in sinter    [kWh/t fuel]";
+  77   
+  78  * Per-fuel minimum share / availability: A * LT/HT <= fuel use
+  79  Parameter
+  80      A_saf_lt(s,fuel_lt)  "LT fuel availability for SAF"
+  81      A_saf_ht(s,fuel_ht)  "HT fuel availability for SAF"
+  82      A_sint_lt(fuel_lt)   "LT fuel availability for sinter"
+  83      A_sint_ht(fuel_ht)   "HT fuel availability for sinter";
+  84   
+  85  * Capacities
+  86  Parameter
+  87      Q_SAF(s,t)  "SAF capacity (t product)"
+  88      Q_sint(t)   "sinter capacity (t sinter)";
+  89   
+  90  * Costs
+  91  Parameter
+  92      C_ore(t)        "cost per t ore"
+  93      C_buysinter(t)  "cost per t sinter bought"
+  94      C_coke(t)       "cost per t coke (legacy convenience)"
+  95      C_elec(t)       "cost per kWh electricity"
+  96      C_ets(t)        "cost per t CO2"
+  97      FIXEDCOST(t)    "fixed cost in period t"
+  98      C_fuel(fuel_all,t)   "cost per t fuel";
+  99   
+ 100  *-----------------------------*
+ 101  * Decision variables          *
+ 102  *-----------------------------*
+ 103   
+ 104  Positive Variable
+ 105  * Production and material flows
+ 106      pFeMn(s,t)        "FeMn production (t)"
+ 107      pSiMn(s,t)        "SiMn production (t)"
+ 108      pSinter(t)        "sinter production (t)"
+ 109      bSinter(t)        "sinter bought (t)"
+ 110      uOre(t)           "ore use (t)"
+ 111      uSinterFeMn(s,t)  "sinter used to produce FeMn (t)"
+ 112      uSinterSiMn(s,t)  "sinter used to produce SiMn (t)"
+ 113   
+ 114  * Electricity (kWh)
+ 115      eSAF(s,t)         "SAF electricity (kWh)"
+ 116      eSint(t)          "sinter electricity (kWh)"
+ 117   
+ 118  * Heat balances (kWh)
+ 119      LT_SAF_FeMn(s,t)  "LT heat in SAF for FeMn (kWh)"
+ 120      HT_SAF_FeMn(s,t)  "HT heat in SAF for FeMn (kWh)"
+ 121      LT_SAF_SiMn(s,t)  "LT heat in SAF for SiMn (kWh)"
+ 122      HT_SAF_SiMn(s,t)  "HT heat in SAF for SiMn (kWh)"
+ 123      LT_sint(t)        "LT heat in sinter (kWh)"
+ 124      HT_sint(t)        "HT heat in sinter (kWh)"
+ 125   
+ 126  * Fuel uses (tonnes fuel)
+ 127      uSAF(s,t,fuel_all)      "fuel use in SAF for FeMn (t fuel)"
+ 128      uSAF_SiMn(s,t,fuel_all) "fuel use in SAF for SiMn (t fuel)"
+ 129      uSint_LT(t,fuel_lt)     "LT fuels used in sinter (t fuel)"
+ 130      uSint_HT(t,fuel_ht)     "HT fuels used in sinter (t fuel)"
+ 131   
+ 132  * Slag and off-gas
+ 133      pSlag(s,t)        "slag (t)"
+ 134      pSlagTot(t)       "total slag (t)"
+ 135      gOffgas(s,t)      "off-gas from SAF (t)"
+ 136   
+ 137  * Coke accounting and emissions
+ 138      uTotalCoke_SAF(t) "total coke in SAF (FeMn path, t fuel)"
+ 139      CO2_coke_sint(t)  "CO2 from sinter (t)"
+ 140      CO2_offgas(t)     "CO2 from off-gas flaring (t)"
+ 141   
+ 142  Variable
+ 143      TotalCost         "objective (€)";
+ 144   
+ 145  *-----------------------------*
+ 146  * Equations                   *
+ 147  *-----------------------------*
+ 148   
+ 149  Equation
+ 150      dem_FeMn(t)
+ 151      dem_SiMn(t)
+ 152   
+ 153      ore_to_sinter(t)
+ 154      sinter_energy_total(t)
+ 155      sinter_ht_min(t)
+ 156      sinter_power(t)
+ 157      sinter_use_balance(t)
+ 158      lt_sint_def(t)
+ 159      lt_sint_min_lt(fuel_lt,t)
+ 160      ht_sint_def(t)
+ 161      ht_sint_min_ht(fuel_ht,t)
+ 162   
+ 163      FeMn_sinter_link(s,t)
+ 164      FeMn_energy_total(s,t)
+ 165      FeMn_ht_min(s,t)
+ 166      lt_saf_femn_def(s,t)
+ 167      lt_saf_femn_min(s,t,fuel_lt)
+ 168      ht_saf_femn_def(s,t)
+ 169      ht_saf_femn_min(s,t,fuel_ht)
+ 170   
+ 171      slag_def(s,t)
+ 172      slag_tot_def(t)
+ 173      SiMn_material_balance(t)
+ 174   
+ 175      lt_saf_simn_def(s,t)
+ 176      ht_saf_simn_def(s,t)
+ 177      SiMn_energy_total(s,t)
+ 178      SiMn_ht_min(s,t)
+ 179   
+ 180      e_saf_def(s,t)
+ 181   
+ 182      offgas_def(s,t)
+ 183      CO2_coke_sint_def(t)
+ 184      CO2_offgas_def(t)
+ 185      coke_total_def(t)
+ 186   
+ 187      capacity_saf(s,t)
+ 188      capacity_sinter(t)
+ 189   
+ 190      obj;
+ 191   
+ 192  *-----------------------------*
+ 193  * Constraints                 *
+ 194  *-----------------------------*
+ 195   
+ 196  dem_FeMn(t).. sum(s, pFeMn(s,t)) =g= D_FeMn(t);
+ 197  dem_SiMn(t).. sum(s, pSiMn(s,t)) =g= D_SiMn(t);
+ 198   
+ 199  ore_to_sinter(t).. uOre(t) =e= Y_ore_to_sinter * pSinter(t);
+ 200   
+ 201  sinter_energy_total(t).. LT_sint(t) + HT_sint(t) =e= TCF_sint(t) * pSinter(t);
+ 202  sinter_ht_min(t)..       A_sint_HT_req * pSinter(t) =l= HT_sint(t);
+ 203  sinter_power(t)..        eSint(t) =e= eta_sint * pSinter(t);
+ 204   
+ 205  sinter_use_balance(t)..
+ 206      sum(s, uSinterFeMn(s,t)) + sum(s, uSinterSiMn(s,t)) =e= pSinter(t) + bSinter(t);
+ 207   
+ 208  lt_sint_def(t).. LT_sint(t) =e= sum(fuel_lt, phi_sint_lt(t,fuel_lt) * uSint_LT(t,fuel_lt));
+ 209  lt_sint_min_lt(fuel_lt,t).. A_sint_lt(fuel_lt) * LT_sint(t) =l= uSint_LT(t,fuel_lt);
+ 210   
+ 211  ht_sint_def(t).. HT_sint(t) =e= sum(fuel_ht, phi_sint_ht(t,fuel_ht) * uSint_HT(t,fuel_ht));
+ 212  ht_sint_min_ht(fuel_ht,t).. A_sint_ht(fuel_ht) * HT_sint(t) =l= uSint_HT(t,fuel_ht);
+ 213   
+ 214  FeMn_sinter_link(s,t).. uSinterFeMn(s,t) =e= Y_sinter_to_FeMn * pFeMn(s,t);
+ 215   
+ 216  FeMn_energy_total(s,t).. LT_SAF_FeMn(s,t) + HT_SAF_FeMn(s,t) =e= TCF_FeMn(s,t) * pFeMn(s,t);
+ 217  FeMn_ht_min(s,t)..       A_SAF_HT_req(s) * pFeMn(s,t) =l= HT_SAF_FeMn(s,t);
+ 218   
+ 219  lt_saf_femn_def(s,t)..
+ 220      LT_SAF_FeMn(s,t) =e= sum(fuel_lt, phi_saf_lt(s,t,fuel_lt) * uSAF(s,t,fuel_lt));
+ 221  lt_saf_femn_min(s,t,fuel_lt)..
+ 222      A_saf_lt(s,fuel_lt) * LT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_lt);
+ 223   
+ 224  ht_saf_femn_def(s,t)..
+ 225      HT_SAF_FeMn(s,t) =e= sum(fuel_ht, phi_saf_ht(s,t,fuel_ht) * uSAF(s,t,fuel_ht));
+ 226  ht_saf_femn_min(s,t,fuel_ht)..
+ 227      A_saf_ht(s,fuel_ht) * HT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_ht);
+ 228   
+ 229  slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
+ 230  slag_tot_def(t).. pSlagTot(t) =e= sum(s, pSlag(s,t));
+ 231   
+ 232  SiMn_material_balance(t)..
+ 233      sum(s, uSinterSiMn(s,t)) + pSlagTot(t) =e= sum(s, pSiMn(s,t));
+ 234   
+ 235  lt_saf_simn_def(s,t)..
+ 236      LT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_lt(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 237  ht_saf_simn_def(s,t)..
+ 238      HT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_ht(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 239   
+ 240  SiMn_energy_total(s,t)..
+ 241      LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t) =e= TCF_SiMn(s,t) * pSiMn(s,t);
+ 242  SiMn_ht_min(s,t).. A_SAF_SiMn_HT_req(s) * pSiMn(s,t) =l= HT_SAF_SiMn(s,t);
+ 243   
+ 244  e_saf_def(s,t).. eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t) + nu_SAF_SiMn(s,t) * pSiMn(s,t);
+ 245   
+ 246  offgas_def(s,t)..
+ 247  gOffgas(s,t) =e=
+ 248          sum(fuel_all,
+ 249                Y_offgas(s,t,fuel_all)     * uSAF(s,t,fuel_all)
+ 250              + Y_offgas_smn(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all)
+ 251          );
+ 252   
+ 253  CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
+ 254  CCO2_offgas_def(t).. CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+****                $140
+**** 140  Unknown symbol
+ 255   
+ 256   
+ 257   
+ 258  coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
+ 259   
+ 260  capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
+ 261  capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
+ 262   
+ 263  obj..
+ 264      TotalCost =e= sum(t,
+ 265                   FIXEDCOST(t)
+ 266                 + C_ore(t)        * uOre(t)
+ 267                 + C_buysinter(t)  * bSinter(t)
+ 268                 + C_elec(t)       * ( sum(s, eSAF(s,t)) + eSint(t) )
+ 269                 + C_ets(t)        * ( CO2_coke_sint(t) + CO2_offgas(t) )
+ 270                 + sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF(s,t,fuel_all) + uSAF_SiMn(s,t,fuel_all) )))
+ 271                 + sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT(t,fuel_lt))
+ 272                 + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
+ 273                 );
+ 274   
+ 275  Model FeMn_SiMn_Opt / all /;
+ 276   
+ 277  *-----------------------------*
+ 278  * Test data (example numbers) *
+ 279  *-----------------------------*
+ 280   
+ 281  D_FeMn(t)  = 14630;
+ 282  D_SiMn(t)  = 102300;
+ 283   
+ 284  Y_ore_to_sinter  = 1;
+ 285  Y_sinter_to_FeMn = 1.8;
+ 286  Y_sinter_to_slag = 0.3;
+ 287   
+ 288  * Off-gas yield in t per t fuel (placeholder uniform)
+ 289  Y_offgas(s,t,fuel_all) = 1.8;
+ 290  Y_offgas_smn(s,t,fuel_all)  = 1.8;
+ 291   
+ 292  EF_coke_sint = 1.832;
+ 293  EF_flare     = 1.34;
+ 294  D_offgas(t)  = 0;
+ 295   
+ 296  eta_SAF_FeMn(s,t) = 2850;
+ 297  nu_SAF_SiMn(s,t)  = 6000;
+ 298  eta_sint          = 90;
+ 299   
+ 300  * Total thermal heat intensities (kWh/t product).
+ 301  * Adjust to your process; set to 0 if no external thermal fuel is used there.
+ 302  TCF_FeMn(s,t) = 2700;
+ 303  TCF_SiMn(s,t) = 4500;
+ 304  TCF_sint(t)   = 1000;
+ 305   
+ 306  * Minimum HT requirements (kWh/t product)
+ 307  A_sint_HT_req         = 0;
+ 308  A_SAF_HT_req(s)       = 0.2;
+ 309  A_SAF_SiMn_HT_req(s)  = 0;
+ 310   
+ 311  * Minimum-per-fuel availability coefficients (set to 0 if not binding)
+ 312  A_saf_lt(s,fuel_lt) = 0;
+ 313  A_saf_ht(s,fuel_ht) = 0;
+ 314  A_sint_lt(fuel_lt)  = 0;
+ 315  A_sint_ht(fuel_ht)  = 0;
+ 316   
+ 317  Q_SAF(s,t) = 120000;
+ 318  Q_sint(t)  = 120000;
+ 319   
+ 320  C_ore(t)        = 100;
+ 321  C_buysinter(t)  = 500;
+ 322  C_coke(t)       = 300;
+ 323  C_elec(t)       = 0.010;
+ 324  C_ets(t)        = 100;
+ 325  FIXEDCOST(t)    = 10000;
+ 326   
+ 327  * Initialize fuel prices (€/t fuel)
+ 328  C_fuel(fuel_all,t) = 0;
+ 329  C_fuel('coke',t)      = C_coke(t);
+ 330  C_fuel('oil',t)       = 500;
+ 331  C_fuel('biooil',t)    = 450;
+ 332  C_fuel('woodchips',t) = 120;
+ 333  C_fuel('COgas',t)     = 50;
+ 334  C_fuel('hydrogen',t)  = 2000;
+ 335  C_fuel('natgas',t)    = 150;
+ 336  C_fuel('biogas',t)    = 130;
+ 337  C_fuel('biochar',t)   = 350;
+ 338   
+ 339  * -----------------------------
+ 340  * phi values: kWh per tonne fuel (LHV-based examples).
+ 341  * Replace with plant data / efficiency factors as needed.
+ 342  * -----------------------------
+ 343   
+ 344  * Zero all phi before setting
+ 345  phi_sint_lt(t,fuel_lt)        = 0;
+ 346  phi_sint_ht(t,fuel_ht)        = 0;
+ 347  phi_saf_lt(s,t,fuel_lt)       = 0;
+ 348  phi_saf_ht(s,t,fuel_ht)       = 0;
+ 349  phi_saf_smn_lt(s,t,fuel_all)  = 0;
+ 350  phi_saf_smn_ht(s,t,fuel_all)  = 0;
+ 351   
+ 352  * Example LHVs [kWh/t fuel]
+ 353  Scalar
+ 354      LHV_coke       /  8000 /
+ 355      LHV_biochar    /  7000 /
+ 356      LHV_oil        / 11600 /
+ 357      LHV_biooil     /  5000 /
+ 358      LHV_woodchips  /  2500 /
+ 359      LHV_natgas     / 13900 /
+ 360      LHV_biogas     /  6000 /
+ 361      LHV_COgas      /  2400 /
+ 362      LHV_hydrogen   / 33300 /;
+ 363   
+ 364  * Sinter only uses coke for HT
+ 365  phi_sint_ht(t,'coke') = LHV_coke;
+ 366   
+ 367  * SAF FeMn: HT fuels
+ 368  phi_saf_ht(s,t,'coke')     = LHV_coke;
+ 369  phi_saf_ht(s,t,'biochar')  = LHV_biochar;
+ 370  phi_saf_ht(s,t,'COgas')    = LHV_COgas;
+ 371  phi_saf_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 372  phi_saf_ht(s,t,'natgas')   = LHV_natgas;
+ 373  phi_saf_ht(s,t,'biogas')   = LHV_biogas;
+ 374   
+ 375  * SAF FeMn: LT fuels
+ 376  phi_saf_lt(s,t,'oil')       = LHV_oil;
+ 377  phi_saf_lt(s,t,'biooil')    = LHV_biooil;
+ 378  phi_saf_lt(s,t,'woodchips') = LHV_woodchips;
+ 379   
+ 380  * SAF SiMn: mirror mapping (adjust if different)
+ 381  phi_saf_smn_ht(s,t,'coke')     = LHV_coke;
+ 382  phi_saf_smn_ht(s,t,'biochar')  = LHV_biochar;
+ 383  phi_saf_smn_ht(s,t,'COgas')    = LHV_COgas;
+ 384  phi_saf_smn_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 385  phi_saf_smn_ht(s,t,'natgas')   = LHV_natgas;
+ 386  phi_saf_smn_ht(s,t,'biogas')   = LHV_biogas;
+ 387   
+ 388  phi_saf_smn_lt(s,t,'oil')       = LHV_oil;
+ 389  phi_saf_smn_lt(s,t,'biooil')    = LHV_biooil;
+ 390  phi_saf_smn_lt(s,t,'woodchips') = LHV_woodchips;
+ 391   
+ 392  *-----------------------------*
+ 393  * Solve                       *
+ 394  *-----------------------------*
+ 395  Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
+****                                                   $257
+**** 257  Solve statement not checked because of previous errors
+ 396  execute_unload 'output_test.gdx' CO2_offgas.l, pFeMn.l, pSiMn.l, pSinter.l, bSinter.l, eSaf.l, eSint.l;
+ 397  *-----------------------------*
+ 398  * Optional diagnostics        *
+ 399  *-----------------------------*
+ 400  * Display pFeMn.l, pSiMn.l, pSinter.l, bSinter.l;
+ 401  * Display eSAF.l, eSint.l, LT_sint.l, HT_sint.l;
+ 402  * Display uSAF.l, uSAF_SiMn.l, uSint_LT.l, uSint_HT.l;
+ 403  * Display CO2_offgas.l, CO2_coke_sint.l, TotalCost.l;
+ 404   
+ 405  * === After: Solve FeMn_SiMn_Opt using LP minimizing TotalCost; ===
+ 406   
+ 407  option decimals=6;
+ 408   
+ 409  * Show the two CO2 components by period
+ 410  Display CO2_coke_sint.l, CO2_offgas.l;
+****                        $141          $141
+**** 141  Symbol declared but no values have been assigned. Check for missing
+****         data definition, assignment, data loading or implicit assignment
+****         via a solve statement.
+****         A wild shot: You may have spurious commas in the explanatory
+****         text of a declaration. Check symbol reference list.
+ 411   
+ 412  * Total CO2 by period and overall
+ 413  Parameter CO2_total(t) "Total CO2 per period (t)";
+ 414  CO2_total(t) = CO2_coke_sint.l(t) + CO2_offgas.l(t);
+ 415  Scalar CO2_total_all "Total CO2 over all periods (t)";
+ 416  CO2_total_all = sum(t, CO2_total(t));
+ 417  Display CO2_total, CO2_total_all;
+ 418   
+ 419  * Useful breakdowns / diagnostics
+ 420  Parameter
+ 421      ProdTot(t)         "Total FeMn+SiMn (t)"
+ 422      OffgasProd(s,t)    "Off-gas produced per SAF (t)"
+ 423      OffgasFlared(t)    "Flared off-gas (t)"
+ 424      ETS_cost(t)        "ETS cost per period (eur)"
+ 425      CO2_intensity(t)   "CO2 intensity vs total product (t CO2/t product)";
+ 426   
+ 427  ProdTot(t)      = sum(s, pFeMn.l(s,t) + pSiMn.l(s,t));
+****                                 $141           $141
+**** 141  Symbol declared but no values have been assigned. Check for missing
+****         data definition, assignment, data loading or implicit assignment
+****         via a solve statement.
+****         A wild shot: You may have spurious commas in the explanatory
+****         text of a declaration. Check symbol reference list.
+ 428  OffgasProd(s,t) = gOffgas.l(s,t);
+****                            $141
+**** 141  Symbol declared but no values have been assigned. Check for missing
+****         data definition, assignment, data loading or implicit assignment
+****         via a solve statement.
+****         A wild shot: You may have spurious commas in the explanatory
+****         text of a declaration. Check symbol reference list.
+ 429  OffgasFlared(t) = sum(s, gOffgas.l(s,t)) - D_offgas(t);
+ 430  ETS_cost(t)     = C_ets(t) * CO2_total(t);
+ 431   
+ 432  * Avoid divide-by-zero with a tiny epsilon
+ 433  Scalar ep /1e-9/;
+ 434  CO2_intensity(t) = CO2_total(t) / max(ProdTot(t), ep);
+ 435   
+ 436  Display ProdTot, OffgasProd, OffgasFlared, ETS_cost, CO2_intensity;
+
+**** 7 ERROR(S)   0 WARNING(S)
+
+
+COMPILATION TIME     =        0.000 SECONDS      3 MB  39.1.1 dbf03b78 WEX-WEI
+
+
+USER: Small MUD - 5 User License                     S240604|0002AP-GEN
+      Norwegian University of Science and Technology             DC7530
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.gms
+Output     C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v3.lst
+
+**** USER ERROR(S) ENCOUNTERED
