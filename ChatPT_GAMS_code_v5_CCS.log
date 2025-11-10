@@ -1,0 +1,86 @@
+
+--- Job ChatPT_GAMS_code_v5_CCS.gms Start 11/10/25 12:41:22 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\39\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v5_CCS.gms"
+    PageSize 0
+    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    SysDir C:\GAMS\39\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
+          Norwegian University of Science and Technology             DC7530
+          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          License Admin: Ruud Egging, ruud.egging@ntnu.no                  
+Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- ChatPT_GAMS_code_v5_CCS.gms(576) 3 Mb
+--- Starting execution: elapsed 0:00:00.016
+--- ChatPT_GAMS_code_v5_CCS.gms(491) 4 Mb
+--- Generating LP model FeMn_SiMn_Opt
+--- ChatPT_GAMS_code_v5_CCS.gms(496) 5 Mb
+---   1,537 rows  1,701 columns  5,095 non-zeroes
+--- Range statistics (absolute non-zero finite values)
+--- RHS       [min, max] : [ 1.000E+00, 2.000E+05] - Zero values observed as well
+--- Bound     [min, max] : [        NA,        NA] - Zero values observed as well
+--- Matrix    [min, max] : [ 1.000E-02, 5.000E+05]
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.032
+
+IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
+
+--- GAMS/Cplex licensed for continuous and discrete problems.
+--- GMO setup time: 0.00s
+--- Space for names approximately 0.09 Mb
+--- Use option 'names no' to turn use of names off
+--- GMO memory 0.87 Mb (peak 0.88 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.0.0 link memory 0.05 Mb (peak 0.22 Mb)
+--- Starting Cplex
+
+Version identifier: 22.1.0.0 | 2022-03-09 | 1a383f8ce
+CPXPARAM_Advance                                 0
+CPXPARAM_Threads                                 1
+CPXPARAM_MIP_Display                             4
+CPXPARAM_MIP_Pool_Capacity                       0
+CPXPARAM_MIP_Tolerances_AbsMIPGap                0
+Tried aggregator 1 time.
+LP Presolve eliminated 984 rows and 641 columns.
+Aggregator did 348 substitutions.
+Reduced LP has 204 rows, 712 columns, and 2258 nonzeros.
+Presolve time = 0.00 sec. (1.82 ticks)
+Symmetry aggregator did 777 additional substitutions.
+Initializing dual steep norms . . .
+
+Iteration log . . .
+Iteration:     1   Scaled dual infeas =           674.999999
+Iteration:     6   Dual objective     =        200440.330935
+
+Dual crossover.
+  Dual:  Fixing 16 variables.
+       15 DMoves:  Infeasibility  1.83322801e-12  Objective  2.15277929e+05
+        0 DMoves:  Infeasibility  2.27401431e-13  Objective  2.15277929e+05
+  Dual:  Pushed 0, exchanged 16.
+  Primal:  Fixing 40 variables.
+       39 PMoves:  Infeasibility  0.00000000e+00  Objective  2.15277929e+05
+        0 PMoves:  Infeasibility  0.00000000e+00  Objective  2.15277929e+05
+  Primal:  Pushed 40, exchanged 0.
+
+--- LP status (1): optimal.
+--- Cplex Time: 0.01sec (det. 3.07 ticks)
+
+
+Optimal solution found
+Objective:       215277.929496
+
+--- Reading solution for model FeMn_SiMn_Opt
+--- Executing after solve: elapsed 0:00:00.080
+--- ChatPT_GAMS_code_v5_CCS.gms(541) 5 Mb
+--- GDX File (execute_unload) C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
+--- ChatPT_GAMS_code_v5_CCS.gms(576) 5 Mb
+*** Status: Normal completion
+--- Job ChatPT_GAMS_code_v5_CCS.gms Stop 11/10/25 12:41:22 elapsed 0:00:00.080

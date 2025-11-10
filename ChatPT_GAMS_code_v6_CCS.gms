@@ -1,12 +1,12 @@
-$Title FeMn / SiMn production & energy system (u_fuel in tonnes, phi in kWh/t)
+$Title FeMn / SiMn production & energy system + CCS (u_fuel in tonnes, phi in kWh/t)
 
 *-----------------------------*
 * Sets and indices            *
 *-----------------------------*
 Set
-    t        "time periods" / t1 /
+    t        "time periods"             / t1 /
     ti (t)
-    s        "SAF units"     / s1, s2 /
+    s        "SAF units"               / s1, s2 /
     fuel_all "all fuels"
 / oil, biooil, woodchips, coke, COgas, hydrogen, natgas, biogas, biochar /;
 
@@ -15,6 +15,18 @@ Set fuel_lt(fuel_all) "low-temp fuels"  / oil, biooil, woodchips /;
 Set fuel_ht(fuel_all) "high-temp fuels" / coke, COgas, hydrogen, natgas, biogas, biochar /;
 
 Alias (t,tt);
+
+* --- Helper mapping: cumulative "tt <= t" (constant, no dynamic subsets) ---
+Parameter cumMap(t,tt) "1 if tt is not after t (ord(tt)<=ord(t))";
+cumMap(t,tt) = 0;
+cumMap(t,tt)$(ord(tt) <= ord(t)) = 1;
+
+* --- Investment-allowed mask (1 = invest allowed this period; 0 = not) ---
+Parameter investAllowed(t) "Mask for CCS invest periods (1 allowed, 0 blocked)";
+investAllowed(t) = 1; 
+* If you later add more periods (e.g., /t1*t20/), you can enforce 'every 5 periods' with:
+* investAllowed(t) = 0;
+* investAllowed(t)$(mod(ord(t)-1,5)=0) = 1;
 
 *-----------------------------*
 * Parameters (data inputs)    *
@@ -94,6 +106,14 @@ Parameter
     FIXEDCOST(t)    "fixed cost in period t"
     C_fuel(fuel_all,t)   "cost per t fuel";
 
+* -------- CCS parameters --------
+Scalar
+    omega           "capture factor (fraction of CO2 in flared stream captured, 0..1)";
+Parameter
+    C_CAPEX_CCS(t)  "CAPEX €/ (tCO2/period) for CCS capacity added in period t"
+    C_FIX_CCS(t)    "fixed O&M €/ (tCO2/period) on installed CCS capacity"
+    C_VAR_CCS(t)    "variable €/tCO2 captured";
+
 *-----------------------------*
 * Decision variables          *
 *-----------------------------*
@@ -134,7 +154,13 @@ Positive Variable
 * Coke accounting and emissions
     uTotalCoke_SAF(t) "total coke in SAF (FeMn path, t fuel)"
     CO2_coke_sint(t)  "CO2 from sinter (t)"
-    CO2_offgas(t)     "CO2 from off-gas flaring (t)";
+    CO2_offgas(t)     "CO2 from off-gas flaring after CCS (t)"
+
+* -------- CCS variables --------
+    sCCS(t)           "CO2 captured by CCS in period t (tCO2)"
+    KCCS(t)           "Available CCS capacity in period t (tCO2/period)"
+    Fflare(t)         "Flared off-gas in period t (t off-gas)"
+    qCCS(t)           "CCS capacity addition in period t (tCO2/period)";
 
 Variable
     TotalCost         "objective (€)";
@@ -178,11 +204,20 @@ Equation
 
     offgas_def(s,t)
     CO2_coke_sint_def(t)
+    flare_lower(t)
+    flare_upper(t)
     CO2_offgas_def(t)
+
     coke_total_def(t)
 
     capacity_saf(s,t)
     capacity_sinter(t)
+
+* ---- CCS equations ----
+    invest_mask(t)
+    ccs_stock(t)
+    ccs_cap_bound(t)
+    ccs_phys_bound(t)
 
     obj;
 
@@ -250,15 +285,26 @@ offgas_def(s,t)..
 
 CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
 
-* --- CO2 from flaring (dimension matches declaration over t) ---
+* --- Flared off-gas bounds (non-negative) ---
+flare_lower(t).. Fflare(t) =g= sum(s, gOffgas(s,t)) - D_offgas(t);
+flare_upper(t).. Fflare(t) =l= sum(s, gOffgas(s,t));
+
+* --- Net CO2 from flaring AFTER CCS capture credit ---
 CO2_offgas_def(t)..
-    CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+    CO2_offgas(t) =e= EF_flare * Fflare(t) - sCCS(t);
 
 coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
 
 capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
 capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
 
+* -------- CCS: investment mask, stock, capacity/use, physics --------
+invest_mask(t)..  qCCS(t) =e= investAllowed(t) * qCCS(t);
+ccs_stock(t)..    KCCS(t) =e= sum(tt, cumMap(t,tt) * qCCS(tt));
+ccs_cap_bound(t)..sCCS(t) =l= KCCS(t);
+ccs_phys_bound(t)..sCCS(t) =l= omega * EF_flare * Fflare(t);
+
+* Objective (adds CAPEX, fixed and variable CCS costs)
 obj..
     TotalCost =e= sum(t,
                  FIXEDCOST(t)
@@ -269,7 +315,10 @@ obj..
                + sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF(s,t,fuel_all) + uSAF_SiMn(s,t,fuel_all) )))
                + sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT(t,fuel_lt))
                + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
-               );
+               + C_FIX_CCS(t)    * KCCS(t)
+               + C_VAR_CCS(t)    * sCCS(t)
+               )
+               + sum(t, C_CAPEX_CCS(t) * qCCS(t));
 
 Model FeMn_SiMn_Opt / all /;
 
@@ -284,7 +333,7 @@ D_SiMn(t)  = 1000;
 Y_ore_to_sinter  = 1;
 *Y_sinter_to_FeMn is tonne of sinter needed per tonne of FeMn produced
 Y_sinter_to_FeMn = 1.8;
-*Y_sinter_to_slag is tonne of slag produced per tonne of used
+*Y_sinter_to_slag is tonne of slag produced per tonne used
 Y_sinter_to_slag = 0.3;
 
 * Off-gas yield in t per t fuel (placeholder uniform)
@@ -337,6 +386,16 @@ C_fuel('hydrogen',t)  = 2000;
 C_fuel('natgas',t)    = 150;
 C_fuel('biogas',t)    = 130;
 C_fuel('biochar',t)   = 350;
+
+* -------- CCS test data (tweak as needed) --------
+omega            = 0.9;
+* capture fraction on flared CO2 (0..1)
+C_CAPEX_CCS(t)   = 0;
+* €/ (tCO2/period) at invest periods
+C_FIX_CCS(t)     = 0;
+* €/ (tCO2/period) installed capacity
+C_VAR_CCS(t)     = 0;
+* €/tCO2 captured
 
 * -----------------------------
 * phi values: kWh per tonne fuel (LHV-based examples).
@@ -397,20 +456,15 @@ phi_saf_smn_lt(s,t,'woodchips') = LHV_woodchips;
 Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
 
 execute_unload 'output_test_2.gdx'
-    CO2_offgas.l, pFeMn.l, pSiMn.l, pSinter.l, bSinter.l, eSAF.l, eSint.l;
+    CO2_offgas.l, pFeMn.l, pSiMn.l, pSinter.l, bSinter.l, eSAF.l, eSint.l, sCCS.l, qCCS.l, KCCS.l, Fflare.l;
 
 *-----------------------------*
 * Optional diagnostics        *
 *-----------------------------*
-* Display pFeMn.l, pSiMn.l, pSinter.l, bSinter.l;
-* Display eSAF.l, eSint.l, LT_sint.l, HT_sint.l;
-* Display uSAF.l, uSAF_SiMn.l, uSint_LT.l, uSint_HT.l;
-* Display CO2_offgas.l, CO2_coke_sint.l, TotalCost.l;
-
-option decimals=6;
+option decimals = 6;
 
 * Show the two CO2 components by period
-Display CO2_coke_sint.l, CO2_offgas.l;
+Display CO2_coke_sint.l, CO2_offgas.l, sCCS.l, KCCS.l, qCCS.l, Fflare.l;
 
 * Total CO2 by period and overall
 Parameter CO2_total(t) "Total CO2 per period (t)";
@@ -429,7 +483,7 @@ Parameter
 
 ProdTot(t)      = sum(s, pFeMn.l(s,t) + pSiMn.l(s,t));
 OffgasProd(s,t) = gOffgas.l(s,t);
-OffgasFlared(t) = sum(s, gOffgas.l(s,t)) - D_offgas(t);
+OffgasFlared(t) = Fflare.l(t);
 ETS_cost(t)     = C_ets(t) * CO2_total(t);
 
 Scalar ep /1e-9/;
