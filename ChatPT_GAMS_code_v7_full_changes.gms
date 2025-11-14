@@ -3,16 +3,15 @@ $Title FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in
 * =========================
 * Sets and indices
 * =========================
-Set t          "time periods" / t1*t20 /;
+Set t          "time periods" / t1*t30 /;
 Set s          "SAF units"    / s1, s2 /;
 Set fuel_all   "all fuels"
 / oil, biooil, woodchips, coke, COgas, hydrogen, natgas, biogas, biochar /;
 Set fuel_lt(fuel_all) "low-temp fuels"  / oil, biooil, woodchips /;
 Set fuel_ht(fuel_all) "high-temp fuels" / coke, COgas, hydrogen, natgas, biogas, biochar /;
 Alias (t,tt);
-Set y(t)  "CCS investment periods (subset of T, e.g. every 5th t)" / t5, t10,t15,t20 /;
+Set y(t)  "CCS/biocarbon investment periods (subset of T, e.g. every 5th t)" / t5, t10,t15,t20, t25, t30 /;
 Alias (t,ty);
-
 
 * =========================
 * Parameters (data inputs)
@@ -23,11 +22,17 @@ Parameter
     D_FeMn(t)    "FeMn demand (t)"
     D_SiMn(t)    "SiMn demand (t)";
 
-* Yields
+* Yields (scalars)
 Scalar
     Y_ore_to_sinter      "ore per t sinter"
     Y_sinter_to_FeMn     "sinter per t FeMn"
-    Y_sinter_to_slag     "slag per t sinter used";
+    Y_sinter_to_slag     "slag per t sinter used"
+* For SiMn material balance
+    Y_sinter_SiMn        "coeff on sinter in SiMn material balance"
+    Y_slag_SiMn          "coeff on slag in SiMn material balance"
+* SiMn route material factors
+    Y_SiMn_SiO2_quartz   "t quartz per t SiMn via SiO2 route"
+    Y_SiMn_Si_silicon    "t Si per t SiMn via Si route";
 
 * Off-gas yield (t off-gas per t fuel in SAF)
 Parameter
@@ -44,22 +49,26 @@ Parameter
 * Electricity intensities (kWh per t product)
 Parameter
     eta_SAF_FeMn(s,t)  "kWh per t FeMn"
-    nu_SAF_SiMn(s,t)   "kWh per t SiMn";
+    nu_SAF_SiMn(s,t)   "kWh per t SiMn base (not used directly)"
+    nu_SAF_Si(s,t)     "kWh per t SiMn via Si route"
+    nu_SAF_SiO2(s,t)   "kWh per t SiMn via SiO2 route";
 Scalar
     eta_sint           "kWh per t sinter";
 
 * Total thermal heat required per tonne of product (kWh/t)
 Parameter
-    TCF_FeMn(s,t)   "total heat per t FeMn (kWh/t)"
-    TCF_SiMn(s,t)   "total heat per t SiMn (kWh/t)"
-    TCF_sint(t)     "total heat per t sinter (kWh/t)";
+    TCF_FeMn(s,t)      "total heat per t FeMn (kWh/t)"
+    TCF_SiMn(s,t)      "total heat per t SiMn base (kWh/t)"
+    TCF_SiMn_Si(s,t)   "total heat per t SiMn via Si (kWh/t)"
+    TCF_SiMn_SiO2(s,t) "total heat per t SiMn via SiO2 (kWh/t)"
+    TCF_sint(t)        "total heat per t sinter (kWh/t)";
 
-* Minimum HT requirements (kWh per t product)
+* Minimum HT requirements (fractions of total heat)
 Parameter
-    A_SAF_HT_req(s)       "min HT for FeMn (kWh/t product)"
-    A_SAF_SiMn_HT_req(s)  "min HT for SiMn (kWh/t product)";
+    A_SAF_HT_req(s)       "min HT share for FeMn"
+    A_SAF_SiMn_HT_req(s)  "min HT share for SiMn";
 Scalar
-    A_sint_HT_req         "min HT for sinter (kWh/t product)";
+    A_sint_HT_req         "min HT share for sinter";
 
 * Fuel-to-heat conversion factors (phi = kWh produced per t fuel)
 Parameter
@@ -86,33 +95,41 @@ Parameter
 Parameter
     C_ore(t)        "cost per t ore"
     C_buysinter(t)  "cost per t sinter bought"
-    C_coke(t)       "cost per t coke (legacy convenience)"
+    C_coke(t)       "cost per t coke"
     C_elec(t)       "cost per kWh electricity"
     C_ets(t)        "cost per t CO2"
     FIXEDCOST(t)    "fixed cost in period t"
-    C_fuel(fuel_all,t)   "cost per t fuel";
+    C_fuel(fuel_all,t)   "cost per t fuel"
+    C_quartz(t)     "cost per t quartz"
+    C_Si(t)         "cost per t silicon";
 
 * =========================
-* CCS PARAMETERS (LP)
+* CCS & BIOCARBON PARAMETERS (LP)
 * =========================
 Scalar
-    omega_ccs      "capture efficiency ω (0..1)"             / 0.9 /
-    ;
+    omega_ccs   "capture efficiency (0..1)" /0.9/
+    L_CCS       "CCS lifetime (number of periods)"
+    L_Biocarbon "Biocarbon lifetime (number of periods)";
 Parameter
-    SEC_CCS_el(t)  "electricity for CCS (kWh per tCO2 captured)"
-    SEC_CCS_th(t)  "steam/heat for CCS (kWh_th per tCO2 captured)"
-    C_CCS_var(t)   "CCS variable O&M (€/tCO2 captured)"
-    C_CCS_TandS(t) "Transport & storage (€/tCO2 captured)"
-    C_CCS_steam(t) "Steam price for CCS (€/kWh_th)"
-    C_CCS_capex(t) "Capex cost for CCS in investment periods y (€/ (tCO2 per period))";
+    SEC_CCS_el(t)      "electricity for CCS (kWh per tCO2 captured)"
+    SEC_CCS_th(t)      "steam/heat for CCS (kWh_th per tCO2 captured)"
+    C_CCS_var(t)       "CCS variable O&M (€/tCO2 captured)"
+    C_CCS_TandS(t)     "Transport & storage (€/tCO2 captured)"
+    C_CCS_steam(t)     "Steam price for CCS (€/kWh_th)"
+    C_CCS_capex(t)     "Capex cost for CCS in investment periods y (€/ (tCO2 per period))"
+    C_Biocarbon_capex(t) "Capex cost for biocarbon capacity (€/ (t fuel per period))";
 
 * Initialize so model runs if no data provided
-SEC_CCS_el(t)  = 0;
-SEC_CCS_th(t)  = 0;
-C_CCS_var(t)   = 50;
-C_CCS_TandS(t) = 0;
-C_CCS_steam(t) = 0;
-C_CCS_capex(t) = 500;
+SEC_CCS_el(t)        = 0;
+SEC_CCS_th(t)        = 0;
+C_CCS_var(t)         = 50;
+C_CCS_TandS(t)       = 0;
+C_CCS_steam(t)       = 0;
+C_CCS_capex(t)       = 500;
+C_Biocarbon_capex(t) = 0;
+
+L_CCS       = 20;
+L_Biocarbon = 20;
 
 * =========================
 * Decision variables
@@ -120,12 +137,22 @@ C_CCS_capex(t) = 500;
 Positive Variable
 * Production and material flows
     pFeMn(s,t)        "FeMn production (t)"
-    pSiMn(s,t)        "SiMn production (t)"
+    pSiMn(s,t)        "SiMn total production (t)"
     pSinter(t)        "sinter production (t)"
     bSinter(t)        "sinter bought (t)"
     uOre(t)           "ore use (t)"
     uSinterFeMn(s,t)  "sinter used to produce FeMn (t)"
     uSinterSiMn(s,t)  "sinter used to produce SiMn (t)"
+
+* Route-split SiMn production & sinter use
+    pSiMn_Si(s,t)         "SiMn via Si route (t)"
+    pSiMn_SiO2(s,t)       "SiMn via SiO2 route (t)"
+    uSinterSiMn_Si(s,t)   "sinter to SiMn via Si route (t)"
+    uSinterSiMn_SiO2(s,t) "sinter to SiMn via SiO2 route (t)"
+
+* Quartz and silicon purchases
+    bQuartz(s,t)      "quartz bought for SiMn via SiO2 (t)"
+    bSi(s,t)          "silicon bought for SiMn via Si (t)"
 
 * Electricity (kWh)
     eSAF(s,t)         "SAF electricity (kWh)"
@@ -150,30 +177,27 @@ Positive Variable
     pSlagTot(t)       "total slag (t)"
     gOffgas(s,t)      "off-gas from SAF (t)"
 
-* Coke accounting and emissions (legacy)
+* Coke accounting and emissions
     uTotalCoke_SAF(t) "total coke in SAF (t fuel)"
     CO2_coke_sint(t)  "CO2 from sinter (t)"
     CO2_offgas(t)     "CO2 from off-gas flaring (t)"
-    
-*Biocarbon capacity investments
-    qBiocarbon(t)      "Biocarbon capcity additions made in period t (only allowed if y(t)=yes), unit: tonnes ";     
+
+* Biocarbon capacity investments
+    qBiocarbon(t)     "biocarbon capacity additions in period t (t fuel per period)"
+    biocap(t)         "available biocarbon capacity in period t (t fuel per period)"
 
 * CCS variables
-Positive Variable
-    qCCS(t)             "CCS capacity additions made in period t (only allowed if y(t)=yes), units: tCO2 per period"
-    fCCS(t)             "CO2 stream sent to CCS (t per period) = flow through capture unit"
-    CO2_captured(t)     "CO2 captured (t per period)"
-    CO2_offgas_pot(t)   "CO2 with potential to be emitted from off-gas before CCS (t per period)"
-    CO2_atm_offgas(t)   "Residual off-gas CO2 to atmosphere after CCS (t per period)"
-    eCCS_el(t)          "Electricity use for CCS (kWh)"
-    qCCS_th(t)          "Steam/thermal use for CCS (kWh_th)"
-    CO2_total_net(t)    "Net CO2 to atmosphere (t) (sinter process + residual off-gas)";
-
-* remove CCS_cap(t) and CO2_stack_total/CO2_stack_res from your declarations
-
+    qCCS(t)           "CCS capacity additions in period t (tCO2 per period)"
+    fCCS(t)           "CO2 stream sent to CCS (t per period)"
+    CO2_captured(t)   "CO2 captured (t per period)"
+    CO2_offgas_pot(t) "CO2 with potential to be emitted from off-gas before CCS (t per period)"
+    CO2_atm_offgas(t) "Residual off-gas CO2 to atmosphere after CCS (t per period)"
+    eCCS_el(t)        "Electricity use for CCS (kWh)"
+    qCCS_th(t)        "Steam/thermal use for CCS (kWh_th)"
+    CO2_total_net(t)  "Net CO2 to atmosphere (t) (sinter process + residual off-gas)";
 
 Variable
-    TotalCost           "objective (€)";
+    TotalCost         "objective (€)";
 
 * =========================
 * Equations
@@ -203,6 +227,10 @@ Equation
     slag_def(s,t)
     slag_tot_def(t)
     SiMn_material_balance(t)
+    pSiMn_split_def(s,t)
+    uSinterSiMn_split_def(s,t)
+    quartz_balance(s,t)
+    si_balance(s,t)
 
     lt_saf_simn_def(s,t)
     ht_saf_simn_def(s,t)
@@ -218,62 +246,34 @@ Equation
 
     capacity_saf(s,t)
     capacity_sinter(t)
-    
-obj;
 
-* =========================
-* Equations (append/replace CCS equations only)
-* =========================
+    biocap_def(t)
+    biocarbon_use_limit(t)
 
-Equation
-    co2_offgas_pot_def(t)   "CO2_t^{off-gas} = (sum gOffgas - D_offgas)*EF_flare, potential before CCS"
-    ccs_stream_upper(t)     "f_t^{CCS} ≤ CO2_t^{off-gas}"
-    ccs_capacity_upper(t)   "f_t^{CCS} ≤ sum_{y<=t} q_y^{CCS}"
-    ccs_capture_eff(t)      "s_t^{CO2} ≤ ω · f_t^{CCS}"
-    co2_atm_offgas_def(t)   "CO2^atm_offgas = CO2^off-gas - captured"
-    co2_total_net_def(t)    "Net = sinter process CO2 + residual off-gas CO2"
-    ccs_el_def(t)           "CCS electricity"
-    ccs_th_def(t)           "CCS steam"
-    invest_only_y(t)        "Forbid CCS investment outside y(t)"
-    ;
+    co2_offgas_pot_def(t)
+    ccs_stream_upper(t)
+    ccs_capacity_upper(t)
+    ccs_capture_eff(t)
+    co2_atm_offgas_def(t)
+    co2_total_net_def(t)
+    ccs_el_def(t)
+    ccs_th_def(t)
+    invest_only_y(t)
+    invest_biocarbon_only_y(t)
 
-* Off-gas CO2 that could be emitted absent CCS (matches LaTeX)
-co2_offgas_pot_def(t)..
-    CO2_offgas_pot(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
-
-* f_t^{CCS} ≤ CO2_t^{off-gas}
-ccs_stream_upper(t)..
-    fCCS(t) =l= CO2_offgas_pot(t);
-
-* f_t^{CCS} ≤ K_t^{CCS} = sum_{y<=t} q_y^{CCS}
-ccs_capacity_upper(t)..
-    fCCS(t) =l= sum(ty$( y(ty) and ord(ty) <= ord(t) ), qCCS(ty));
-
-* s_t^{CO2} ≤ ω · f_t^{CCS}
-ccs_capture_eff(t)..
-    CO2_captured(t) =l= omega_ccs * fCCS(t);
-
-* CO2^atm_offgas = CO2^off-gas - s_t^{CO2}
-co2_atm_offgas_def(t)..
-    CO2_atm_offgas(t) =e= CO2_offgas_pot(t) - CO2_captured(t);
-
-* Net emissions include sinter process CO2 + residual off-gas
-co2_total_net_def(t)..
-    CO2_total_net(t) =e= CO2_coke_sint(t) + CO2_atm_offgas(t);
-
-* CCS energy links
-ccs_el_def(t)..  eCCS_el(t) =e= SEC_CCS_el(t) * CO2_captured(t);
-ccs_th_def(t)..  qCCS_th(t) =e= SEC_CCS_th(t) * CO2_captured(t);
-
-* Forbid investment outside y
-invest_only_y(t)$(not y(t))..
-    qCCS(t) =e= 0;
+    obj;
 
 * =========================
 * Constraints
 * =========================
+
 dem_FeMn(t).. sum(s, pFeMn(s,t)) =g= D_FeMn(t);
 dem_SiMn(t).. sum(s, pSiMn(s,t)) =g= D_SiMn(t);
+
+* Split total SiMn into Si and SiO2 routes
+pSiMn_split_def(s,t).. pSiMn(s,t) =e= pSiMn_Si(s,t) + pSiMn_SiO2(s,t);
+uSinterSiMn_split_def(s,t)..
+    uSinterSiMn(s,t) =e= uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t);
 
 ore_to_sinter(t).. uOre(t) =e= Y_ore_to_sinter * pSinter(t);
 
@@ -308,19 +308,35 @@ ht_saf_femn_min(s,t,fuel_ht)..
 slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
 slag_tot_def(t).. pSlagTot(t) =e= sum(s, pSlag(s,t));
 
+* SiMn material balance including slag & sinter
 SiMn_material_balance(t)..
-    sum(s, uSinterSiMn(s,t)) + pSlagTot(t) =e= sum(s, pSiMn(s,t));
+    Y_sinter_SiMn * sum(s, uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t))
+  + Y_slag_SiMn   * pSlagTot(t)
+    =e= sum(s, pSiMn_Si(s,t) + pSiMn_SiO2(s,t));
+
+* Quartz and Si balances
+quartz_balance(s,t).. bQuartz(s,t) =e= Y_SiMn_SiO2_quartz * pSiMn_SiO2(s,t);
+si_balance(s,t)..     bSi(s,t)     =e= Y_SiMn_Si_silicon  * pSiMn_Si(s,t);
 
 lt_saf_simn_def(s,t)..
     LT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_lt(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
 ht_saf_simn_def(s,t)..
     HT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_ht(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
 
+* Route-specific SiMn heat
 SiMn_energy_total(s,t)..
-    LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t) =e= TCF_SiMn(s,t) * pSiMn(s,t);
-SiMn_ht_min(s,t).. A_SAF_SiMn_HT_req(s) * pSiMn(s,t) =l= HT_SAF_SiMn(s,t);
+    LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t)
+    =e= TCF_SiMn_Si(s,t)   * pSiMn_Si(s,t)
+       + TCF_SiMn_SiO2(s,t)* pSiMn_SiO2(s,t);
 
-e_saf_def(s,t).. eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t) + nu_SAF_SiMn(s,t) * pSiMn(s,t);
+SiMn_ht_min(s,t)..
+    A_SAF_SiMn_HT_req(s) * (pSiMn_Si(s,t) + pSiMn_SiO2(s,t)) =l= HT_SAF_SiMn(s,t);
+
+* Route-specific electricity
+e_saf_def(s,t)..
+    eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t)
+              + nu_SAF_Si(s,t)      * pSiMn_Si(s,t)
+              + nu_SAF_SiO2(s,t)    * pSiMn_SiO2(s,t);
 
 * Off-gas production (FeMn + SiMn paths)
 offgas_def(s,t)..
@@ -332,7 +348,6 @@ offgas_def(s,t)..
 
 CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
 
-* Legacy flaring CO2 (still reported)
 CO2_offgas_def(t)..
     CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
 
@@ -341,6 +356,53 @@ coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
 capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
 capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
 
+* Biocarbon capacity accumulation and usage limit
+biocap_def(t)..
+    biocap(t) =e=
+       sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_Biocarbon ),
+           qBiocarbon(ty));
+
+biocarbon_use_limit(t)..
+    sum(s, uSAF(s,t,'biochar') + uSAF_SiMn(s,t,'biochar'))
+  + uSint_HT(t,'biochar')
+    =l= biocap(t);
+
+* =========================
+* CCS equations
+* =========================
+
+co2_offgas_pot_def(t)..
+    CO2_offgas_pot(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+
+ccs_stream_upper(t)..      fCCS(t) =l= CO2_offgas_pot(t);
+
+* Lifetime-limited CCS capacity
+ccs_capacity_upper(t)..
+    fCCS(t) =l=
+       sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_CCS ),
+           qCCS(ty));
+
+ccs_capture_eff(t)..
+    CO2_captured(t) =l= omega_ccs * fCCS(t);
+
+co2_atm_offgas_def(t)..
+    CO2_atm_offgas(t) =e= CO2_offgas_pot(t) - CO2_captured(t);
+
+co2_total_net_def(t)..
+    CO2_total_net(t) =e= CO2_coke_sint(t) + CO2_atm_offgas(t);
+
+ccs_el_def(t)..  eCCS_el(t) =e= SEC_CCS_el(t) * CO2_captured(t);
+ccs_th_def(t)..  qCCS_th(t) =e= SEC_CCS_th(t) * CO2_captured(t);
+
+invest_only_y(t)$(not y(t))..
+    qCCS(t) =e= 0;
+
+invest_biocarbon_only_y(t)$(not y(t))..
+    qBiocarbon(t) =e= 0;
+
+* =========================
+* Objective function
+* =========================
 obj..
     TotalCost =e=
       sum(t,
@@ -354,9 +416,11 @@ obj..
          + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
          + ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured(t)
          + C_CCS_steam(t) * qCCS_th(t)
+         + sum(s, C_quartz(t) * bQuartz(s,t))
+         + sum(s, C_Si(t)     * bSi(s,t))
         )
-      + sum(t$y(t), C_CCS_capex(t) * qCCS(t));
-
+      + sum(t$y(t), C_CCS_capex(t)        * qCCS(t))
+      + sum(t$y(t), C_Biocarbon_capex(t)  * qBiocarbon(t));
 
 * =========================
 * Model & Test data
@@ -365,78 +429,59 @@ Model FeMn_SiMn_Opt / all /;
 
 * --- Test data (example numbers) ---
 
-*FeMn Demand
 D_FeMn(t)  = 1000;
-*SiMn Demand
 D_SiMn(t)  = 1000;
 
-*Conversion rates (ton needed/ton produced)
 Y_ore_to_sinter  = 1;
-*Conversion rates (ton needed/ton produced)
 Y_sinter_to_FeMn = 1.8;
-*Conversion rates (ton produced/ton used)
 Y_sinter_to_slag = 0.3;
 
-*Carbon emission factor of FeMn fuels (ton CO2/ton fuel)
+Y_sinter_SiMn      = 1.8;
+Y_slag_SiMn        = 0.6;
+Y_SiMn_SiO2_quartz = 0.4;
+Y_SiMn_Si_silicon  = 0.4;
+
 Y_offgas(s,t,fuel_all)     = 1.8;
-*Carbon emission factor of SiMn fuels (ton CO2/ton fuel)
 Y_offgas_smn(s,t,fuel_all) = 1.8;
 
-*coke CO2 emission factor (ton CO2/ton coke)
 EF_coke_sint = 1.832;
-
-*Flaring factor
 EF_flare     = 1.5;
-*Offgas demand of the rest of the industrial park
 D_offgas(t)  = 0;
 
-*Demand of electricity per FeMn produced (kWh needed/ton produced)
 eta_SAF_FeMn(s,t) = 2850;
-*Demand of electricity per SiMn produced (kWh needed/ton produced)
 nu_SAF_SiMn(s,t)  = 6000;
-*Electricity demand of sinter (kWh needed/ton produced)
+nu_SAF_Si(s,t)    = 2500;
+nu_SAF_SiO2(s,t)  = 4500;
+
 eta_sint          = 90;
 
-*quantity of heat needed per ton of FeMn produced (kWh needed/ton produced)
 TCF_FeMn(s,t) = 2700;
-*quantity of heat needed per ton of SiMn produced (kWh needed/ton produced)
 TCF_SiMn(s,t) = 4500;
-*quantity of heat needed per ton of sinter produced (kWh needed/ton produced)
+TCF_SiMn_Si(s,t)   = 0.8 * TCF_SiMn(s,t);
+TCF_SiMn_SiO2(s,t) =       TCF_SiMn(s,t);
 TCF_sint(t)   = 1000;
 
-*Percentage of total sinter heat needed as high temperature
 A_sint_HT_req         = 0;
-*Percentage of total FeMn production heat needed as high temperature
 A_SAF_HT_req(s)       = 0.2;
-*Percentage of total SiMn production heat needed as high temperature
 A_SAF_SiMn_HT_req(s)  = 0;
 
-*Percentage of low temperature needed from a particular fuel in SAF
 A_saf_lt(s,fuel_lt) = 0;
-*Percentage of high temperature needed from a particular fuel in SAF
 A_saf_ht(s,fuel_ht) = 0;
-*Percentage of low temperature needed from a particular fuel in sinter
 A_sint_lt(fuel_lt)  = 0;
-*Percentage of high temperature needed from a particular fuel in sinter
 A_sint_ht(fuel_ht)  = 0;
 
-*SAF capacity per period in tons
 Q_SAF(s,t) = 120000;
-*Sinter capacity per period in tons
 Q_sint(t)  = 120000;
 
-*Cost of buying ore (euro/ton)
 C_ore(t)        = 100;
-*Cost of buying sinter (euro/ton)
 C_buysinter(t)  = 500;
-*Cost of buying coke (euro/ton)
 C_coke(t)       = 300;
-*Cost of buying electricity (euro/kWh)
 C_elec(t)       = 0.010;
-*Cost of CO2 emissions (euro/ton)
 C_ets(t)        = 100;
-*Fixed costs of production CAN BE TAKEN OUT
 FIXEDCOST(t)    = 10000;
+
+C_quartz(t) = 0;
+C_Si(t)     = 0;
 
 C_fuel(fuel_all,t) = 0;
 C_fuel('coke',t)      = C_coke(t);
@@ -449,7 +494,6 @@ C_fuel('natgas',t)    = 150;
 C_fuel('biogas',t)    = 130;
 C_fuel('biochar',t)   = 500;
 
-* Heat conversion (kWh per tonne fuel) – example LHVs
 phi_sint_lt(t,fuel_lt)        = 0;
 phi_sint_ht(t,fuel_ht)        = 0;
 phi_saf_lt(s,t,fuel_lt)       = 0;
@@ -500,56 +544,54 @@ Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
 Display CO2_coke_sint.l, CO2_offgas_pot.l, CO2_atm_offgas.l;
 
 * ===== Per-period cost breakdown =====
-Set costcat / fixed, ore, buysinter, elec, fuel_SAF, fuel_sint, ccs_var_ts, ccs_steam, ets, capex_ccs, total /;
+Set costcat / fixed, ore, buysinter, elec, fuel_SAF, fuel_sint,
+              quartz, silicon, ccs_var_ts, ccs_steam, ets,
+              capex_ccs, capex_biocarb, total /;
 Parameter CostByT(t,costcat) "Cost breakdown by period (EUR)"
           TotalCost_t(t)      "Total cost per period (EUR)"
           TotalCost_check     "Sum over periods (EUR)";
 
-* Components that appear inside the objective’s sum(t, ...)
 CostByT(t,'fixed')     = FIXEDCOST(t);
 CostByT(t,'ore')       = C_ore(t)       * uOre.l(t);
 CostByT(t,'buysinter') = C_buysinter(t) * bSinter.l(t);
 
-* Electricity: SAF + sinter + CCS
 CostByT(t,'elec') = C_elec(t) * ( sum(s, eSAF.l(s,t)) + eSint.l(t) + eCCS_el.l(t) );
 
-* Fuels: SAF (FeMn+SiMn) + sinter
 CostByT(t,'fuel_SAF')  = sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF.l(s,t,fuel_all) + uSAF_SiMn.l(s,t,fuel_all) )));
 CostByT(t,'fuel_sint') =   sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT.l(t,fuel_lt))
                          + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT.l(t,fuel_ht));
 
-* CCS variable parts
+CostByT(t,'quartz')  = sum(s, C_quartz(t) * bQuartz.l(s,t));
+CostByT(t,'silicon') = sum(s, C_Si(t)     * bSi.l(s,t));
+
 CostByT(t,'ccs_var_ts') = ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured.l(t);
 CostByT(t,'ccs_steam')  = C_CCS_steam(t) * qCCS_th.l(t);
 
-* ETS
 CostByT(t,'ets') = C_ets(t) * CO2_total_net.l(t);
 
-* CCS capex only in investment periods y(t)
-CostByT(t,'capex_ccs') = 0;
-CostByT(t,'capex_ccs')$y(t) = C_CCS_capex(t) * qCCS.l(t);
+CostByT(t,'capex_ccs')     = 0;
+CostByT(t,'capex_ccs')$y(t)     = C_CCS_capex(t)       * qCCS.l(t);
+CostByT(t,'capex_biocarb') = 0;
+CostByT(t,'capex_biocarb')$y(t) = C_Biocarbon_capex(t) * qBiocarbon.l(t);
 
-* Per-period total and cross-check against the model objective
 CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinter')
                    + CostByT(t,'elec')  + CostByT(t,'fuel_SAF') + CostByT(t,'fuel_sint')
+                   + CostByT(t,'quartz') + CostByT(t,'silicon')
                    + CostByT(t,'ccs_var_ts') + CostByT(t,'ccs_steam') + CostByT(t,'ets')
-                   + CostByT(t,'capex_ccs');
+                   + CostByT(t,'capex_ccs') + CostByT(t,'capex_biocarb');
 
 TotalCost_t(t)  = CostByT(t,'total');
 TotalCost_check = sum(t, TotalCost_t(t));
 
-* ... after computing CostByT, TotalCost_t, TotalCost_check ...
-
 execute_unload 'output_test_2.gdx'
     CO2_offgas_pot.l, CO2_atm_offgas.l,
-    pFeMn.l, pSiMn.l, pSinter.l, bSinter.l, eSAF.l, eSint.l,
+    pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
+    pSinter.l, bSinter.l, eSAF.l, eSint.l,
+    bQuartz.l, bSi.l,
     CO2_captured.l, CO2_total_net.l, qCCS.l, eCCS_el.l, qCCS_th.l,
+    qBiocarbon.l, biocap.l,
     CostByT, TotalCost_t, TotalCost_check, costcat;
 
-
-* =========================
-* Optional diagnostics
-* =========================
 option decimals=6;
 
 Display CO2_coke_sint.l, CO2_offgas.l;
