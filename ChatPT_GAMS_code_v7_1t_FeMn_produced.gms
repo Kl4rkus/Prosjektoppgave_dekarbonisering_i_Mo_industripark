@@ -3,7 +3,7 @@ $Title FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in
 * =========================
 * Sets and indices
 * =========================
-Set t          "time periods" / t1*t30 /;
+Set t          "time periods" / t1*t5 /;
 Set s          "SAF units"    / s1, s2 /;
 Set fuel_all   "all fuels"
 / oil, biooil, woodchips, coke, COgas, hydrogen, natgas, biogas, biochar /;
@@ -12,7 +12,7 @@ Set fuel_bio(fuel_all) "biogenic fuels"
 Set fuel_lt(fuel_all) "low-temp fuels"  / oil, biooil, woodchips /;
 Set fuel_ht(fuel_all) "high-temp fuels" / coke, COgas, hydrogen, natgas, biogas, biochar /;
 Alias (t,tt);
-Set y(t)  "CCS/biocarbon investment periods (subset of T, e.g. every 5th t)" / t5, t10, t15, t20, t25, t30 /;
+Set y(t)  "CCS/biocarbon investment periods (subset of T, e.g. every 5th t)" / t5 /;
 Alias (t,ty);
 
 * =========================
@@ -23,72 +23,6 @@ Alias (t,ty);
 Parameter
     D_FeMn(t)    "FeMn demand (t)"
     D_SiMn(t)    "SiMn demand (t)";
-    
-Parameter D_FeMn(t) /
-            t1  70459.8
-            t2  0
-            t3  5692.3
-            t4  460
-            t5  0
-            t6  0
-            t7  14629.7
-            t8   14629.7
-            t9   14629.7
-            t10  14629.7
-            t11  14629.7
-            t12  14629.7
-            t13  14629.7
-            t14  14629.7
-            t15  14629.7
-            t16  14629.7
-            t17  14629.7
-            t18  14629.7
-            t19  14629.7
-            t20  14629.7
-            t21  14629.7
-            t22  14629.7
-            t23  14629.7
-            t24  14629.7
-            t25  14629.7
-            t26  14629.7
-            t27  14629.7
-            t28  14629.7
-            t29  14629.7
-            t30  14629.7
-/
-
-D_SiMn(t)  /
-            t1  66607.8
-            t2  112911.1
-            t3  89571.5
-            t4  39481.7
-            t5  83985.7
-            t6  117459.3
-            t7  102297.2
-            t8   103270.4
-            t9   107219.7
-            t10  111168.9
-            t11  115118.2
-            t12  119067.4
-            t13  123016.7
-            t14  126965.9
-            t15  130915.1
-            t16  134864.4
-            t17  138813.6
-            t18  142762.9
-            t19  146712.1
-            t20  150661.4
-            t21  154610.6
-            t22  158559.8
-            t23  162509.1
-            t24  166458.3
-            t25  170407.6
-            t26  174356.8
-            t27  178306.1
-            t28  182255.3
-            t29  186204.5
-            t30  190153.8
-/;
 
 
 * Yields (scalars)
@@ -195,7 +129,7 @@ C_CCS_var(t)         = 50;
 C_CCS_TandS(t)       = 0;
 C_CCS_steam(t)       = 0;
 C_CCS_capex(t)       = 100;
-C_Biocarbon_capex(t) = 0;
+C_Biocarbon_capex(t) = 100;
 
 L_CCS       = 20;
 L_Biocarbon = 20;
@@ -207,6 +141,37 @@ EF_bio('biochar')   = 3.0;
 EF_bio('woodchips') = 1.8;
 EF_bio('biooil')    = 3.0;
 EF_bio('biogas')    = 2.0;
+
+* Fossil and total (fossil+biogenic) CO2 emission factors per fuel
+* Units: t CO2 per t fuel
+Parameter
+    EF_fossil(fuel_all) "Fossil CO2 per t fuel"
+    EF_tot(fuel_all)    "Total (fossil+biogenic) CO2 per t fuel";
+
+* Default: zero
+EF_fossil(fuel_all) = 0;
+
+* Approximate fossil CO2 emission factors (based on typical carbon content & LHVs)
+* high-carbon solid fuel
+EF_fossil('coke')     = 3.3;
+* heavy fuel oil
+EF_fossil('oil')      = 3.1;
+* natural gas
+EF_fossil('natgas')   = 2.7;
+* CO-rich off-gas, low LHV
+EF_fossil('COgas')    = 0.4;
+* no direct CO2 on combustion
+EF_fossil('hydrogen') = 0.0;   
+
+* Biofuels: fossil part = 0; their CO2 is fully in EF_bio
+EF_fossil('biochar')   = 0;
+EF_fossil('woodchips') = 0;
+EF_fossil('biooil')    = 0;
+EF_fossil('biogas')    = 0;
+
+* Total CO2 emission factor per fuel = fossil + biogenic
+EF_tot(fuel_all) = EF_fossil(fuel_all) + EF_bio(fuel_all);
+
 
 
 *Trying to add an inital value for the demand 
@@ -352,8 +317,8 @@ Equation
 * Constraints
 * =========================
 
-dem_FeMn(t).. sum(s, pFeMn(s,t)) =g= D_FeMn(t);
-dem_SiMn(t).. sum(s, pSiMn(s,t)) =g= D_SiMn(t);
+dem_FeMn(t).. sum(s, pFeMn(s,t)) =e= D_FeMn(t);
+dem_SiMn(t).. sum(s, pSiMn(s,t)) =e= D_SiMn(t);
 
 * Split total SiMn into Si and SiO2 routes
 pSiMn_split_def(s,t).. pSiMn(s,t) =e= pSiMn_Si(s,t) + pSiMn_SiO2(s,t);
@@ -391,7 +356,7 @@ ht_saf_femn_min(s,t,fuel_ht)..
     A_saf_ht(s,fuel_ht) * HT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_ht);
 
 slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
-slag_tot_def(t).. pSlagTot(t) =e= sum(s, pSlag(s,t));
+slag_tot_def(t).. pSlagTot(t) =l= sum(s, pSlag(s,t));
 
 * SiMn material balance including slag & sinter
 SiMn_material_balance(t)..
@@ -540,6 +505,9 @@ obj..
 Model FeMn_SiMn_Opt / all /;
 
 * --- Test data (example numbers) ---
+D_FeMn(t) = 1;
+D_SiMn(t) =0;
+
 
 Y_ore_to_sinter  = 1;
 Y_sinter_to_FeMn = 1.8;
@@ -587,20 +555,20 @@ C_buysinter(t)  = 500;
 C_coke(t)       = 300;
 C_elec(t)       = 0.010;
 C_ets(t)        = 100;
-FIXEDCOST(t)    = 10000;
+FIXEDCOST(t)    = 000;
 
 C_quartz(t) = 50;
 C_Si(t)     = 250;
 
 C_fuel(fuel_all,t) = 0;
 C_fuel('coke',t)      = C_coke(t);
-C_fuel('oil',t)       = 500;
-C_fuel('biooil',t)    = 450;
-C_fuel('woodchips',t) = 120;
-C_fuel('COgas',t)     = 500;
+C_fuel('oil',t)       = 5000;
+C_fuel('biooil',t)    = 4500;
+C_fuel('woodchips',t) = 1200;
+C_fuel('COgas',t)     = 5000;
 C_fuel('hydrogen',t)  = 2000;
-C_fuel('natgas',t)    = 150;
-C_fuel('biogas',t)    = 130;
+C_fuel('natgas',t)    = 1500;
+C_fuel('biogas',t)    = 1300;
 C_fuel('biochar',t)   = 400;
 
 phi_sint_lt(t,fuel_lt)        = 0;
@@ -613,13 +581,13 @@ phi_saf_smn_ht(s,t,fuel_all)  = 0;
 Scalar
     LHV_coke       /  8000 /
     LHV_biochar    /  7000 /
-    LHV_oil        / 11600 /
-    LHV_biooil     /  5000 /
+    LHV_oil        / 1160 /
+    LHV_biooil     /  500 /
     LHV_woodchips  /  2500 /
-    LHV_natgas     / 13900 /
-    LHV_biogas     /  6000 /
-    LHV_COgas      /  2400 /
-    LHV_hydrogen   / 33300 /;
+    LHV_natgas     / 1390 /
+    LHV_biogas     /  600 /
+    LHV_COgas      /  240 /
+    LHV_hydrogen   / 3330 /;
 
 phi_sint_ht(t,'coke') = LHV_coke;
 
@@ -692,14 +660,18 @@ CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinte
 TotalCost_t(t)  = CostByT(t,'total');
 TotalCost_check = sum(t, TotalCost_t(t));
 
-execute_unload 'output_test_2.gdx'
+execute_unload 'output_test_3.gdx'
     CO2_offgas_pot.l, CO2_atm_offgas.l,
     pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
     pSinter.l, bSinter.l, eSAF.l, eSint.l,
     bQuartz.l, bSi.l,
     CO2_captured.l, CO2_total_net.l, qCCS.l, eCCS_el.l, qCCS_th.l,
     qBiocarbon.l, biocap.l,
-    CostByT, TotalCost_t, TotalCost_check, costcat;
+    CostByT, TotalCost_t, TotalCost_check, costcat
+    uSAF.l, 
+    uSAF_SiMn.l,
+    uSint_LT.l,
+    uSint_HT.l;
 
 option decimals=6;
 
