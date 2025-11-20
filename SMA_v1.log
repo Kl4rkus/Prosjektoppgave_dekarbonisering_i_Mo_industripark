@@ -1,0 +1,73 @@
+
+--- Job SMA_v1.gms Start 11/19/25 15:17:31 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\39\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\SMA_v1.gms"
+    PageSize 0
+    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    SysDir C:\GAMS\39\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
+          Norwegian University of Science and Technology             DC7530
+          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          License Admin: Ruud Egging, ruud.egging@ntnu.no                  
+Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
+--- Starting compilation
+--- SMA_v1.gms(503) 3 Mb
+--- Starting execution: elapsed 0:00:00.015
+--- SMA_v1.gms(421) 4 Mb
+--- Generating LP model SMA_CaCO3_Opt
+--- SMA_v1.gms(426) 4 Mb
+---   1,314 rows  1,171 columns  3,208 non-zeroes
+--- Range statistics (absolute non-zero finite values)
+--- RHS       [min, max] : [ 3.948E+04, 1.902E+05] - Zero values observed as well
+--- Bound     [min, max] : [        NA,        NA] - Zero values observed as well
+--- Matrix    [min, max] : [ 1.000E-02, 3.330E+04]
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.016
+
+IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
+
+--- GAMS/Cplex licensed for continuous and discrete problems.
+--- GMO setup time: 0.00s
+--- Space for names approximately 0.07 Mb
+--- Use option 'names no' to turn use of names off
+--- GMO memory 0.78 Mb (peak 0.79 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.0.0 link memory 0.04 Mb (peak 0.16 Mb)
+--- Starting Cplex
+
+Version identifier: 22.1.0.0 | 2022-03-09 | 1a383f8ce
+CPXPARAM_Advance                                 0
+CPXPARAM_Threads                                 1
+CPXPARAM_MIP_Display                             4
+CPXPARAM_MIP_Pool_Capacity                       0
+CPXPARAM_MIP_Tolerances_AbsMIPGap                0
+Tried aggregator 1 time.
+LP Presolve eliminated 1120 rows and 972 columns.
+Aggregator did 108 substitutions.
+Reduced LP has 85 rows, 91 columns, and 258 nonzeros.
+Presolve time = 0.00 sec. (0.85 ticks)
+
+Iteration log . . .
+Iteration:     1   Dual objective     =    -495738674.903609
+
+--- LP status (1): optimal.
+--- Cplex Time: 0.00sec (det. 1.41 ticks)
+
+
+Optimal solution found
+Objective:     16454300.672231
+
+--- Reading solution for model SMA_CaCO3_Opt
+--- Executing after solve: elapsed 0:00:00.048
+--- SMA_v1.gms(489) 4 Mb
+--- GDX File (execute_unload) C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_SMA.gdx
+--- SMA_v1.gms(502) 4 Mb
+*** Status: Normal completion
+--- Job SMA_v1.gms Stop 11/19/25 15:17:31 elapsed 0:00:00.048
