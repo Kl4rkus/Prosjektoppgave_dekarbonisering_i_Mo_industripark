@@ -1,11 +1,10 @@
-
---- Job ChatPT_GAMS_code_v7_full_changes.gms Start 11/13/25 12:22:07 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Job ChatPT_GAMS_code_v7_full_changes.gms Start 11/17/25 13:17:50 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
 --- Applying:
     C:\GAMS\39\gmsprmNT.txt
 --- GAMS Parameters defined
-    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms"
+    Input C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms
     PageSize 0
-    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    ScrDir C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\
     SysDir C:\GAMS\39\
     LogOption 3
     ErrMsg 1
@@ -14,13 +13,13 @@
     LstTitleLeftAligned 1
 Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
           Norwegian University of Science and Technology             DC7530
-          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          C:\Users\karl\Documents\GAMS\gamslice.txt
           License Admin: Ruud Egging, ruud.egging@ntnu.no                  
-Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+Processor information: 1 socket(s), 10 core(s), and 20 thread(s) available
 GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
 --- Starting compilation
 --- ChatPT_GAMS_code_v7_full_changes.gms(620) 3 Mb
---- Starting execution: elapsed 0:00:00.000
+--- Starting execution: elapsed 0:00:00.043
 --- ChatPT_GAMS_code_v7_full_changes.gms(537) 4 Mb
 --- Generating LP model FeMn_SiMn_Opt
 --- ChatPT_GAMS_code_v7_full_changes.gms(542) 5 Mb
@@ -29,7 +28,7 @@ GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
 --- RHS       [min, max] : [ 1.000E+03, 3.000E+05] - Zero values observed as well
 --- Bound     [min, max] : [        NA,        NA] - Zero values observed as well
 --- Matrix    [min, max] : [ 1.000E-02, 5.000E+05]
---- Executing CPLEX (Solvelink=2): elapsed 0:00:00.031
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.257
 
 IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
 
@@ -52,7 +51,7 @@ Tried aggregator 1 time.
 LP Presolve eliminated 1590 rows and 1091 columns.
 Aggregator did 642 substitutions.
 Reduced LP has 396 rows, 1238 columns, and 3574 nonzeros.
-Presolve time = 0.01 sec. (3.18 ticks)
+Presolve time = 0.00 sec. (3.19 ticks)
 Symmetry aggregator did 1406 additional substitutions.
 Initializing dual steep norms . . .
 
@@ -62,25 +61,25 @@ Iteration:     8   Dual objective     =        740330.935252
 
 Dual crossover.
   Dual:  Fixing 41 variables.
-       40 DMoves:  Infeasibility  4.26880753e-13  Objective  2.96207750e+07
-        0 DMoves:  Infeasibility  3.97903932e-13  Objective  2.96207750e+07
+       40 DMoves:  Infeasibility  3.14838433e-13  Objective  2.81160550e+07
+        0 DMoves:  Infeasibility  2.84217094e-13  Objective  2.81160550e+07
   Dual:  Pushed 0, exchanged 41.
   Primal:  Fixing 60 variables.
-       59 PMoves:  Infeasibility  0.00000000e+00  Objective  2.96207750e+07
-        0 PMoves:  Infeasibility  0.00000000e+00  Objective  2.96207750e+07
+       59 PMoves:  Infeasibility  0.00000000e+00  Objective  2.81160550e+07
+        0 PMoves:  Infeasibility  0.00000000e+00  Objective  2.81160550e+07
   Primal:  Pushed 60, exchanged 0.
 
 --- LP status (1): optimal.
---- Cplex Time: 0.01sec (det. 5.36 ticks)
+--- Cplex Time: 0.00sec (det. 5.36 ticks)
 
 
 Optimal solution found
-Objective:     29620774.964029
+Objective:     28116054.964029
 
 --- Reading solution for model FeMn_SiMn_Opt
---- Executing after solve: elapsed 0:00:00.079
+--- Executing after solve: elapsed 0:00:00.521
 --- ChatPT_GAMS_code_v7_full_changes.gms(586) 5 Mb
---- GDX File (execute_unload) C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
+--- GDX File (execute_unload) C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
 --- ChatPT_GAMS_code_v7_full_changes.gms(620) 5 Mb
 *** Status: Normal completion
---- Job ChatPT_GAMS_code_v7_full_changes.gms Stop 11/13/25 12:22:07 elapsed 0:00:00.079
+--- Job ChatPT_GAMS_code_v7_full_changes.gms Stop 11/17/25 13:17:50 elapsed 0:00:00.524
