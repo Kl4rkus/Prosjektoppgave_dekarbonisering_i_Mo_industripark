@@ -1,0 +1,3733 @@
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 1
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+C o m p i l a t i o n
+
+
+   2   
+   3  * =========================
+   4  * Sets and indices
+   5  * =========================
+   6  Set t          "time periods" / t1*t5 /;
+   7  Set s          "SAF units"    / s1, s2 /;
+   8  Set fuel_all   "all fuels"
+   9  / oil, biooil, woodchips, coke, COgas, hydrogen, natgas, biogas, biochar /;
+  10  Set fuel_bio(fuel_all) "biogenic fuels"
+  11  / biooil, woodchips, biogas, biochar /;
+  12  Set fuel_lt(fuel_all) "low-temp fuels"  / oil, biooil, woodchips /;
+  13  Set fuel_ht(fuel_all) "high-temp fuels" / coke, COgas, hydrogen, natgas, biogas, biochar /;
+  14  Alias (t,tt);
+  15  Set y(t)  "CCS/biocarbon investment periods (subset of T, e.g. every 5th t)" / t5 /;
+  16  Alias (t,ty);
+  17   
+  18  * =========================
+  19  * Parameters (data inputs)
+  20  * =========================
+  21   
+  22  * Demands
+  23  Parameter
+  24      D_FeMn(t)    "FeMn demand (t)"
+  25      D_SiMn(t)    "SiMn demand (t)";
+  26   
+  27   
+  28  * Yields (scalars)
+  29  Scalar
+  30      Y_ore_to_sinter      "ore per t sinter"
+  31      Y_sinter_to_FeMn     "sinter per t FeMn"
+  32      Y_sinter_to_slag     "slag per t sinter used"
+  33  * For SiMn material balance
+  34      Y_sinter_SiMn        "coeff on sinter in SiMn material balance"
+  35      Y_slag_SiMn          "coeff on slag in SiMn material balance"
+  36  * SiMn route material factors
+  37      Y_SiMn_SiO2_quartz   "t quartz per t SiMn via SiO2 route"
+  38      Y_SiMn_Si_silicon    "t Si per t SiMn via Si route";
+  39   
+  40  * Off-gas yield (t off-gas per t fuel in SAF)
+  41  Parameter
+  42      Y_offgas(s,t,fuel_all)     "off-gas yield (t/t fuel) - FeMn path"
+  43      Y_offgas_smn(s,t,fuel_all) "off-gas yield (t/t fuel) - SiMn path";
+  44   
+  45  * Emission factors and off-gas sink
+  46  Scalar
+  47      EF_coke_sint  "t CO2 per t sinter output"
+  48      EF_flare      "t CO2 per t off-gas fully oxidized (stack CO2 factor)";
+  49  Parameter
+  50      D_offgas(t)   "off-gas demand (t)";
+  51   
+  52  * Electricity intensities (kWh per t product)
+  53  Parameter
+  54      eta_SAF_FeMn(s,t)  "kWh per t FeMn"
+  55      nu_SAF_SiMn(s,t)   "kWh per t SiMn base (not used directly)"
+  56      nu_SAF_Si(s,t)     "kWh per t SiMn via Si route"
+  57      nu_SAF_SiO2(s,t)   "kWh per t SiMn via SiO2 route";
+  58  Scalar
+  59      eta_sint           "kWh per t sinter";
+  60   
+  61  * Total thermal heat required per tonne of product (kWh/t)
+  62  Parameter
+  63      TCF_FeMn(s,t)      "total heat per t FeMn (kWh/t)"
+  64      TCF_SiMn(s,t)      "total heat per t SiMn base (kWh/t)"
+  65      TCF_SiMn_Si(s,t)   "total heat per t SiMn via Si (kWh/t)"
+  66      TCF_SiMn_SiO2(s,t) "total heat per t SiMn via SiO2 (kWh/t)"
+  67      TCF_sint(t)        "total heat per t sinter (kWh/t)";
+  68   
+  69  * Minimum HT requirements (fractions of total heat)
+  70  Parameter
+  71      A_SAF_HT_req(s)       "min HT share for FeMn"
+  72      A_SAF_SiMn_HT_req(s)  "min HT share for SiMn";
+  73  Scalar
+  74      A_sint_HT_req         "min HT share for sinter";
+  75   
+  76  * Fuel-to-heat conversion factors (phi = kWh produced per t fuel)
+  77  Parameter
+  78      phi_saf_lt(s,t,fuel_lt)       "LT heat from LT fuels in SAF (FeMn) [kWh/t fuel]"
+  79      phi_saf_ht(s,t,fuel_ht)       "HT heat from HT fuels in SAF (FeMn) [kWh/t fuel]"
+  80      phi_saf_smn_lt(s,t,fuel_all)  "LT heat from fuels in SAF (SiMn)   [kWh/t fuel]"
+  81      phi_saf_smn_ht(s,t,fuel_all)  "HT heat from fuels in SAF (SiMn)   [kWh/t fuel]"
+  82      phi_sint_lt(t,fuel_lt)        "LT heat from LT fuels in sinter    [kWh/t fuel]"
+  83      phi_sint_ht(t,fuel_ht)        "HT heat from HT fuels in sinter    [kWh/t fuel]";
+  84   
+  85  * Per-fuel minimum share / availability: A * LT/HT <= fuel use
+  86  Parameter
+  87      A_saf_lt(s,fuel_lt)  "LT fuel availability for SAF"
+  88      A_saf_ht(s,fuel_ht)  "HT fuel availability for SAF"
+  89      A_sint_lt(fuel_lt)   "LT fuel availability for sinter"
+  90      A_sint_ht(fuel_ht)   "HT fuel availability for sinter";
+  91   
+  92  * Capacities
+  93  Parameter
+  94      Q_SAF(s,t)  "SAF capacity (t product)"
+  95      Q_sint(t)   "sinter capacity (t sinter)";
+  96   
+  97  * Costs
+  98  Parameter
+  99      C_ore(t)        "cost per t ore"
+ 100      C_buysinter(t)  "cost per t sinter bought"
+ 101      C_coke(t)       "cost per t coke"
+ 102      C_elec(t)       "cost per kWh electricity"
+ 103      C_ets(t)        "cost per t CO2"
+ 104      FIXEDCOST(t)    "fixed cost in period t"
+ 105      C_fuel(fuel_all,t)   "cost per t fuel"
+ 106      C_quartz(t)     "cost per t quartz"
+ 107      C_Si(t)         "cost per t silicon";
+ 108   
+ 109  * =========================
+ 110  * CCS & BIOCARBON PARAMETERS (LP)
+ 111  * =========================
+ 112  Scalar
+ 113      omega_ccs   "capture efficiency (0..1)" /0.9/
+ 114      L_CCS       "CCS lifetime (number of periods)"
+ 115      L_Biocarbon "Biocarbon lifetime (number of periods)";
+ 116  Parameter
+ 117      SEC_CCS_el(t)      "electricity for CCS (kWh per tCO2 captured)"
+ 118      SEC_CCS_th(t)      "steam/heat for CCS (kWh_th per tCO2 captured)"
+ 119      C_CCS_var(t)       "CCS variable O&M (€/tCO2 captured)"
+ 120      C_CCS_TandS(t)     "Transport & storage (€/tCO2 captured)"
+ 121      C_CCS_steam(t)     "Steam price for CCS (€/kWh_th)"
+ 122      C_CCS_capex(t)     "Capex cost for CCS in investment periods y (€/ (tCO2 per period))"
+ 123      C_Biocarbon_capex(t) "Capex cost for biocarbon capacity (€/ (t fuel per period))";
+ 124   
+ 125  * Initialize so model runs if no data provided
+ 126  SEC_CCS_el(t)        = 0;
+ 127  SEC_CCS_th(t)        = 0;
+ 128  C_CCS_var(t)         = 50;
+ 129  C_CCS_TandS(t)       = 0;
+ 130  C_CCS_steam(t)       = 0;
+ 131  C_CCS_capex(t)       = 100;
+ 132  C_Biocarbon_capex(t) = 100;
+ 133   
+ 134  L_CCS       = 20;
+ 135  L_Biocarbon = 20;
+ 136   
+ 137  * Biogenic CO2 emission factors (t CO2 per t fuel; non-bio = 0)
+ 138  Parameter EF_bio(fuel_all) "t CO2 per t fuel (nonzero only for biogenic)";
+ 139  EF_bio(fuel_all) = 0;
+ 140  EF_bio('biochar')   = 3.0;
+ 141  EF_bio('woodchips') = 1.8;
+ 142  EF_bio('biooil')    = 3.0;
+ 143  EF_bio('biogas')    = 2.0;
+ 144   
+ 145  * Fossil and total (fossil+biogenic) CO2 emission factors per fuel
+ 146  * Units: t CO2 per t fuel
+ 147  Parameter
+ 148      EF_fossil(fuel_all) "Fossil CO2 per t fuel"
+ 149      EF_tot(fuel_all)    "Total (fossil+biogenic) CO2 per t fuel";
+ 150   
+ 151  * Default: zero
+ 152  EF_fossil(fuel_all) = 0;
+ 153   
+ 154  * Approximate fossil CO2 emission factors (based on typical carbon content & LHVs)
+ 155  * high-carbon solid fuel
+ 156  EF_fossil('coke')     = 3.3;
+ 157  * heavy fuel oil
+ 158  EF_fossil('oil')      = 3.1;
+ 159  * natural gas
+ 160  EF_fossil('natgas')   = 2.7;
+ 161  * CO-rich off-gas, low LHV
+ 162  EF_fossil('COgas')    = 0.4;
+ 163  * no direct CO2 on combustion
+ 164  EF_fossil('hydrogen') = 0.0;
+ 165   
+ 166  * Biofuels: fossil part = 0; their CO2 is fully in EF_bio
+ 167  EF_fossil('biochar')   = 0;
+ 168  EF_fossil('woodchips') = 0;
+ 169  EF_fossil('biooil')    = 0;
+ 170  EF_fossil('biogas')    = 0;
+ 171   
+ 172  * Total CO2 emission factor per fuel = fossil + biogenic
+ 173  EF_tot(fuel_all) = EF_fossil(fuel_all) + EF_bio(fuel_all);
+ 174   
+ 175   
+ 176   
+ 177  *Trying to add an inital value for the demand
+ 178   
+ 179  * =========================
+ 180  * Decision variables
+ 181  * =========================
+ 182  Positive Variable
+ 183  * Production and material flows
+ 184      pFeMn(s,t)        "FeMn production (t)"
+ 185      pSiMn(s,t)        "SiMn total production (t)"
+ 186      pSinter(t)        "sinter production (t)"
+ 187      bSinter(t)        "sinter bought (t)"
+ 188      uOre(t)           "ore use (t)"
+ 189      uSinterFeMn(s,t)  "sinter used to produce FeMn (t)"
+ 190      uSinterSiMn(s,t)  "sinter used to produce SiMn (t)"
+ 191   
+ 192  * Route-split SiMn production & sinter use
+ 193      pSiMn_Si(s,t)         "SiMn via Si route (t)"
+ 194      pSiMn_SiO2(s,t)       "SiMn via SiO2 route (t)"
+ 195      uSinterSiMn_Si(s,t)   "sinter to SiMn via Si route (t)"
+ 196      uSinterSiMn_SiO2(s,t) "sinter to SiMn via SiO2 route (t)"
+ 197   
+ 198  * Quartz and silicon purchases
+ 199      bQuartz(s,t)      "quartz bought for SiMn via SiO2 (t)"
+ 200      bSi(s,t)          "silicon bought for SiMn via Si (t)"
+ 201   
+ 202  * Electricity (kWh)
+ 203      eSAF(s,t)         "SAF electricity (kWh)"
+ 204      eSint(t)          "sinter electricity (kWh)"
+ 205   
+ 206  * Heat balances (kWh)
+ 207      LT_SAF_FeMn(s,t)  "LT heat in SAF for FeMn (kWh)"
+ 208      HT_SAF_FeMn(s,t)  "HT heat in SAF for FeMn (kWh)"
+ 209      LT_SAF_SiMn(s,t)  "LT heat in SAF for SiMn (kWh)"
+ 210      HT_SAF_SiMn(s,t)  "HT heat in SAF for SiMn (kWh)"
+ 211      LT_sint(t)        "LT heat in sinter (kWh)"
+ 212      HT_sint(t)        "HT heat in sinter (kWh)"
+ 213   
+ 214  * Fuel uses (tonnes fuel)
+ 215      uSAF(s,t,fuel_all)      "fuel use in SAF for FeMn (t fuel)"
+ 216      uSAF_SiMn(s,t,fuel_all) "fuel use in SAF for SiMn (t fuel)"
+ 217      uSint_LT(t,fuel_lt)     "LT fuels used in sinter (t fuel)"
+ 218      uSint_HT(t,fuel_ht)     "HT fuels used in sinter (t fuel)"
+ 219   
+ 220  * Slag and off-gas
+ 221      pSlag(s,t)        "slag (t)"
+ 222      pSlagTot(t)       "total slag (t)"
+ 223      gOffgas(s,t)      "off-gas from SAF (t)"
+ 224   
+ 225  * Coke accounting and emissions
+ 226      uTotalCoke_SAF(t) "total coke in SAF (t fuel)"
+ 227      CO2_coke_sint(t)  "CO2 from sinter (t)"
+ 228      CO2_offgas(t)     "CO2 from off-gas flaring (t)"
+ 229   
+ 230  * Biocarbon capacity investments
+ 231      qBiocarbon(t)     "biocarbon capacity additions in period t (t fuel per period)"
+ 232      biocap(t)         "available biocarbon capacity in period t (t fuel per period)"
+ 233   
+ 234  * CCS variables
+ 235      qCCS(t)           "CCS capacity additions in period t (tCO2 per period)"
+ 236      fCCS(t)           "CO2 stream sent to CCS (t per period)"
+ 237      CO2_captured(t)   "CO2 captured (t per period)"
+ 238      CO2_offgas_pot(t) "CO2 with potential to be emitted from off-gas before CCS (t per period)"
+ 239      CO2_atm_offgas(t) "Residual off-gas CO2 to atmosphere after CCS (t per period)"
+ 240      eCCS_el(t)        "Electricity use for CCS (kWh)"
+ 241      qCCS_th(t)        "Steam/thermal use for CCS (kWh_th)"
+ 242      CO2_total_net(t)  "Net CO2 to atmosphere (t) (sinter process + residual off-gas)"
+ 243      CO2_bio_pre(t)    "Biogenic CO2 that would be emitted without CCS (t)"
+ 244      CO2_ets(t)        "ETS-accounted net CO2 (can be negative)";
+ 245   
+ 246  Variable
+ 247      TotalCost         "objective (€)";
+ 248   
+ 249  * =========================
+ 250  * Equations
+ 251  * =========================
+ 252  Equation
+ 253      dem_FeMn(t)
+ 254      dem_SiMn(t)
+ 255   
+ 256      ore_to_sinter(t)
+ 257      sinter_energy_total(t)
+ 258      sinter_ht_min(t)
+ 259      sinter_power(t)
+ 260      sinter_use_balance(t)
+ 261      lt_sint_def(t)
+ 262      lt_sint_min_lt(fuel_lt,t)
+ 263      ht_sint_def(t)
+ 264      ht_sint_min_ht(fuel_ht,t)
+ 265   
+ 266      FeMn_sinter_link(s,t)
+ 267      FeMn_energy_total(s,t)
+ 268      FeMn_ht_min(s,t)
+ 269      lt_saf_femn_def(s,t)
+ 270      lt_saf_femn_min(s,t,fuel_lt)
+ 271      ht_saf_femn_def(s,t)
+ 272      ht_saf_femn_min(s,t,fuel_ht)
+ 273   
+ 274      slag_def(s,t)
+ 275      slag_tot_def(t)
+ 276      SiMn_material_balance(t)
+ 277      pSiMn_split_def(s,t)
+ 278      uSinterSiMn_split_def(s,t)
+ 279      quartz_balance(s,t)
+ 280      si_balance(s,t)
+ 281   
+ 282      lt_saf_simn_def(s,t)
+ 283      ht_saf_simn_def(s,t)
+ 284      SiMn_energy_total(s,t)
+ 285      SiMn_ht_min(s,t)
+ 286   
+ 287      e_saf_def(s,t)
+ 288   
+ 289      offgas_def(s,t)
+ 290      CO2_coke_sint_def(t)
+ 291      CO2_offgas_def(t)
+ 292      coke_total_def(t)
+ 293   
+ 294      capacity_saf(s,t)
+ 295      capacity_sinter(t)
+ 296   
+ 297      biocap_def(t)
+ 298      biocarbon_use_limit(t)
+ 299   
+ 300      co2_offgas_pot_def(t)
+ 301      ccs_stream_upper(t)
+ 302      ccs_capacity_upper(t)
+ 303      ccs_capture_eff(t)
+ 304      co2_atm_offgas_def(t)
+ 305      co2_total_net_def(t)
+ 306      ccs_el_def(t)
+ 307      ccs_th_def(t)
+ 308      invest_only_y(t)
+ 309      invest_biocarbon_only_y(t)
+ 310   
+ 311      co2_bio_pre_def(t)   "Biogenic CO2 pre-capture"
+ 312      co2_ets_def(t)       "ETS-accounted emissions"
+ 313   
+ 314      obj;
+ 315   
+ 316  * =========================
+ 317  * Constraints
+ 318  * =========================
+ 319   
+ 320  dem_FeMn(t).. sum(s, pFeMn(s,t)) =e= D_FeMn(t);
+ 321  dem_SiMn(t).. sum(s, pSiMn(s,t)) =e= D_SiMn(t);
+ 322   
+ 323  * Split total SiMn into Si and SiO2 routes
+ 324  pSiMn_split_def(s,t).. pSiMn(s,t) =e= pSiMn_Si(s,t) + pSiMn_SiO2(s,t);
+ 325  uSinterSiMn_split_def(s,t)..
+ 326      uSinterSiMn(s,t) =e= uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t);
+ 327   
+ 328  ore_to_sinter(t).. uOre(t) =e= Y_ore_to_sinter * pSinter(t);
+ 329   
+ 330  sinter_energy_total(t).. LT_sint(t) + HT_sint(t) =e= TCF_sint(t) * pSinter(t);
+ 331  sinter_ht_min(t)..       A_sint_HT_req * pSinter(t) =l= HT_sint(t);
+ 332  sinter_power(t)..        eSint(t) =e= eta_sint * pSinter(t);
+ 333   
+ 334  sinter_use_balance(t)..
+ 335      sum(s, uSinterFeMn(s,t)) + sum(s, uSinterSiMn(s,t)) =e= pSinter(t) + bSinter(t);
+ 336   
+ 337  lt_sint_def(t).. LT_sint(t) =e= sum(fuel_lt, phi_sint_lt(t,fuel_lt) * uSint_LT(t,fuel_lt));
+ 338  lt_sint_min_lt(fuel_lt,t).. A_sint_lt(fuel_lt) * LT_sint(t) =l= uSint_LT(t,fuel_lt);
+ 339   
+ 340  ht_sint_def(t).. HT_sint(t) =e= sum(fuel_ht, phi_sint_ht(t,fuel_ht) * uSint_HT(t,fuel_ht));
+ 341  ht_sint_min_ht(fuel_ht,t).. A_sint_ht(fuel_ht) * HT_sint(t) =l= uSint_HT(t,fuel_ht);
+ 342   
+ 343  FeMn_sinter_link(s,t).. uSinterFeMn(s,t) =e= Y_sinter_to_FeMn * pFeMn(s,t);
+ 344   
+ 345  FeMn_energy_total(s,t).. LT_SAF_FeMn(s,t) + HT_SAF_FeMn(s,t) =e= TCF_FeMn(s,t) * pFeMn(s,t);
+ 346  FeMn_ht_min(s,t)..       A_SAF_HT_req(s) * pFeMn(s,t) =l= HT_SAF_FeMn(s,t);
+ 347   
+ 348  lt_saf_femn_def(s,t)..
+ 349      LT_SAF_FeMn(s,t) =e= sum(fuel_lt, phi_saf_lt(s,t,fuel_lt) * uSAF(s,t,fuel_lt));
+ 350  lt_saf_femn_min(s,t,fuel_lt)..
+ 351      A_saf_lt(s,fuel_lt) * LT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_lt);
+ 352   
+ 353  ht_saf_femn_def(s,t)..
+ 354      HT_SAF_FeMn(s,t) =e= sum(fuel_ht, phi_saf_ht(s,t,fuel_ht) * uSAF(s,t,fuel_ht));
+ 355  ht_saf_femn_min(s,t,fuel_ht)..
+ 356      A_saf_ht(s,fuel_ht) * HT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_ht);
+ 357   
+ 358  slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
+ 359  slag_tot_def(t).. pSlagTot(t) =l= sum(s, pSlag(s,t));
+ 360   
+ 361  * SiMn material balance including slag & sinter
+ 362  SiMn_material_balance(t)..
+ 363      Y_sinter_SiMn * sum(s, uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t))
+ 364    + Y_slag_SiMn   * pSlagTot(t)
+ 365      =e= sum(s, pSiMn_Si(s,t) + pSiMn_SiO2(s,t));
+ 366   
+ 367  * Quartz and Si balances
+ 368  quartz_balance(s,t).. bQuartz(s,t) =e= Y_SiMn_SiO2_quartz * pSiMn_SiO2(s,t);
+ 369  si_balance(s,t)..     bSi(s,t)     =e= Y_SiMn_Si_silicon  * pSiMn_Si(s,t);
+ 370   
+ 371  lt_saf_simn_def(s,t)..
+ 372      LT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_lt(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 373  ht_saf_simn_def(s,t)..
+ 374      HT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_ht(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 375   
+ 376  * Route-specific SiMn heat
+ 377  SiMn_energy_total(s,t)..
+ 378      LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t)
+ 379      =e= TCF_SiMn_Si(s,t)   * pSiMn_Si(s,t)
+ 380         + TCF_SiMn_SiO2(s,t)* pSiMn_SiO2(s,t);
+ 381   
+ 382  SiMn_ht_min(s,t)..
+ 383      A_SAF_SiMn_HT_req(s) * (pSiMn_Si(s,t) + pSiMn_SiO2(s,t)) =l= HT_SAF_SiMn(s,t);
+ 384   
+ 385  * Route-specific electricity
+ 386  e_saf_def(s,t)..
+ 387      eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t)
+ 388                + nu_SAF_Si(s,t)      * pSiMn_Si(s,t)
+ 389                + nu_SAF_SiO2(s,t)    * pSiMn_SiO2(s,t);
+ 390   
+ 391  * Off-gas production (FeMn + SiMn paths)
+ 392  offgas_def(s,t)..
+ 393      gOffgas(s,t) =e=
+ 394          sum(fuel_all,
+ 395                Y_offgas(s,t,fuel_all)     * uSAF(s,t,fuel_all)
+ 396              + Y_offgas_smn(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all)
+ 397          );
+ 398   
+ 399  CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
+ 400   
+ 401  CO2_offgas_def(t)..
+ 402      CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 403   
+ 404  coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
+ 405   
+ 406  capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
+ 407  capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
+ 408   
+ 409  * Biocarbon capacity accumulation and usage limit
+ 410  biocap_def(t)..
+ 411      biocap(t) =e=
+ 412         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_Biocarbon ),
+ 413             qBiocarbon(ty));
+ 414   
+ 415  biocarbon_use_limit(t)..
+ 416      sum(s, uSAF(s,t,'biochar') + uSAF_SiMn(s,t,'biochar'))
+ 417    + uSint_HT(t,'biochar')
+ 418      =l= biocap(t);
+ 419   
+ 420  * =========================
+ 421  * CCS equations
+ 422  * =========================
+ 423   
+ 424  co2_offgas_pot_def(t)..
+ 425      CO2_offgas_pot(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 426   
+ 427  ccs_stream_upper(t)..      fCCS(t) =l= CO2_offgas_pot(t);
+ 428   
+ 429  * Lifetime-limited CCS capacity
+ 430  ccs_capacity_upper(t)..
+ 431      fCCS(t) =l=
+ 432         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_CCS ),
+ 433             qCCS(ty));
+ 434   
+ 435  ccs_capture_eff(t)..
+ 436      CO2_captured(t) =l= omega_ccs * fCCS(t);
+ 437   
+ 438  co2_atm_offgas_def(t)..
+ 439      CO2_atm_offgas(t) =e= CO2_offgas_pot(t) - CO2_captured(t);
+ 440   
+ 441  co2_total_net_def(t)..
+ 442      CO2_total_net(t) =e= CO2_coke_sint(t) + CO2_atm_offgas(t);
+ 443   
+ 444  ccs_el_def(t)..  eCCS_el(t) =e= SEC_CCS_el(t) * CO2_captured(t);
+ 445  ccs_th_def(t)..  qCCS_th(t) =e= SEC_CCS_th(t) * CO2_captured(t);
+ 446   
+ 447  invest_only_y(t)$(not y(t))..
+ 448      qCCS(t) =e= 0;
+ 449   
+ 450  invest_biocarbon_only_y(t)$(not y(t))..
+ 451      qBiocarbon(t) =e= 0;
+ 452   
+ 453   
+ 454  * =========================
+ 455  * Biogenic CO2 & ETS accounting
+ 456  * =========================
+ 457   
+ 458  * Total biogenic CO2 that would be emitted if there were no CCS
+ 459  co2_bio_pre_def(t)..
+ 460      CO2_bio_pre(t) =e=
+ 461            sum(s, sum(fuel_bio,
+ 462                          EF_bio(fuel_bio)
+ 463                        * ( uSAF(s,t,fuel_bio)
+ 464                          + uSAF_SiMn(s,t,fuel_bio) )))
+ 465          + sum(fuel_lt$(fuel_bio(fuel_lt)),
+ 466                  EF_bio(fuel_lt) * uSint_LT(t,fuel_lt))
+ 467          + sum(fuel_ht$(fuel_bio(fuel_ht)),
+ 468                  EF_bio(fuel_ht) * uSint_HT(t,fuel_ht));
+ 469   
+ 470   
+ 471  * ETS-accounted emissions:
+ 472  *   physical net emissions (CO2_total_net)
+ 473  *   minus all biogenic CO2 (treated as climate-neutral),
+ 474  * which automatically allows negative emissions when CCS captures more
+ 475  * than fossil emissions.
+ 476  co2_ets_def(t)..
+ 477      CO2_ets(t) =e= CO2_total_net(t) - CO2_bio_pre(t);
+ 478   
+ 479   
+ 480  * =========================
+ 481  * Objective function
+ 482  * =========================
+ 483  obj..
+ 484      TotalCost =e=
+ 485        sum(t,
+ 486             FIXEDCOST(t)
+ 487           + C_ore(t)        * uOre(t)
+ 488           + C_buysinter(t)  * bSinter(t)
+ 489           + C_elec(t)       * ( sum(s, eSAF(s,t)) + eSint(t) + eCCS_el(t) )
+ 490           + C_ets(t)        * CO2_ets(t)
+ 491           + sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF(s,t,fuel_all) + uSAF_SiMn(s,t,fuel_all) )))
+ 492           + sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT(t,fuel_lt))
+ 493           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
+ 494           + ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured(t)
+ 495           + C_CCS_steam(t) * qCCS_th(t)
+ 496           + sum(s, C_quartz(t) * bQuartz(s,t))
+ 497           + sum(s, C_Si(t)     * bSi(s,t))
+ 498          )
+ 499        + sum(t$y(t), C_CCS_capex(t)        * qCCS(t))
+ 500        + sum(t$y(t), C_Biocarbon_capex(t)  * qBiocarbon(t));
+ 501   
+ 502  * =========================
+ 503  * Model & Test data
+ 504  * =========================
+ 505  Model FeMn_SiMn_Opt / all /;
+ 506   
+ 507  * --- Test data (example numbers) ---
+ 508  D_FeMn(t) = 1;
+ 509  D_SiMn(t) =0;
+ 510   
+ 511   
+ 512  Y_ore_to_sinter  = 1;
+ 513  Y_sinter_to_FeMn = 1.8;
+ 514  Y_sinter_to_slag = 0.3;
+ 515   
+ 516  Y_sinter_SiMn      = 1.8;
+ 517  Y_slag_SiMn        = 0.6;
+ 518  Y_SiMn_SiO2_quartz = 0.4;
+ 519  Y_SiMn_Si_silicon  = 0.4;
+ 520   
+ 521  Y_offgas(s,t,fuel_all)     = 1.8;
+ 522  Y_offgas_smn(s,t,fuel_all) = 1.8;
+ 523   
+ 524  EF_coke_sint = 1.832;
+ 525  EF_flare     = 1.5;
+ 526  D_offgas(t)  = 0;
+ 527   
+ 528  eta_SAF_FeMn(s,t) = 2850;
+ 529  nu_SAF_SiMn(s,t)  = 6000;
+ 530  nu_SAF_Si(s,t)    = 2500;
+ 531  nu_SAF_SiO2(s,t)  = 4500;
+ 532   
+ 533  eta_sint          = 90;
+ 534   
+ 535  TCF_FeMn(s,t) = 2700;
+ 536  *TCF_SiMn(s,t) = 4500;
+ 537  TCF_SiMn_Si(s,t)   = 2500;
+ 538  TCF_SiMn_SiO2(s,t) =       4500;
+ 539  TCF_sint(t)   = 1000;
+ 540   
+ 541  A_sint_HT_req         = 0;
+ 542  A_SAF_HT_req(s)       = 0.2;
+ 543  A_SAF_SiMn_HT_req(s)  = 0;
+ 544   
+ 545  A_saf_lt(s,fuel_lt) = 0;
+ 546  A_saf_ht(s,fuel_ht) = 0;
+ 547  A_sint_lt(fuel_lt)  = 0;
+ 548  A_sint_ht(fuel_ht)  = 0;
+ 549   
+ 550  Q_SAF(s,t) = 120000;
+ 551  Q_sint(t)  = 120000;
+ 552   
+ 553  C_ore(t)        = 100;
+ 554  C_buysinter(t)  = 500;
+ 555  C_coke(t)       = 300;
+ 556  C_elec(t)       = 0.010;
+ 557  C_ets(t)        = 100;
+ 558  FIXEDCOST(t)    = 000;
+ 559   
+ 560  C_quartz(t) = 50;
+ 561  C_Si(t)     = 250;
+ 562   
+ 563  C_fuel(fuel_all,t) = 0;
+ 564  C_fuel('coke',t)      = C_coke(t);
+ 565  C_fuel('oil',t)       = 5000;
+ 566  C_fuel('biooil',t)    = 4500;
+ 567  C_fuel('woodchips',t) = 1200;
+ 568  C_fuel('COgas',t)     = 5000;
+ 569  C_fuel('hydrogen',t)  = 2000;
+ 570  C_fuel('natgas',t)    = 1500;
+ 571  C_fuel('biogas',t)    = 1300;
+ 572  C_fuel('biochar',t)   = 400;
+ 573   
+ 574  phi_sint_lt(t,fuel_lt)        = 0;
+ 575  phi_sint_ht(t,fuel_ht)        = 0;
+ 576  phi_saf_lt(s,t,fuel_lt)       = 0;
+ 577  phi_saf_ht(s,t,fuel_ht)       = 0;
+ 578  phi_saf_smn_lt(s,t,fuel_all)  = 0;
+ 579  phi_saf_smn_ht(s,t,fuel_all)  = 0;
+ 580   
+ 581  Scalar
+ 582      LHV_coke       /  8000 /
+ 583      LHV_biochar    /  7000 /
+ 584      LHV_oil        / 1160 /
+ 585      LHV_biooil     /  500 /
+ 586      LHV_woodchips  /  2500 /
+ 587      LHV_natgas     / 1390 /
+ 588      LHV_biogas     /  600 /
+ 589      LHV_COgas      /  240 /
+ 590      LHV_hydrogen   / 3330 /;
+ 591   
+ 592  phi_sint_ht(t,'coke') = LHV_coke;
+ 593   
+ 594  phi_saf_ht(s,t,'coke')     = LHV_coke;
+ 595  phi_saf_ht(s,t,'biochar')  = LHV_biochar;
+ 596  phi_saf_ht(s,t,'COgas')    = LHV_COgas;
+ 597  phi_saf_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 598  phi_saf_ht(s,t,'natgas')   = LHV_natgas;
+ 599  phi_saf_ht(s,t,'biogas')   = LHV_biogas;
+ 600   
+ 601  phi_saf_lt(s,t,'oil')       = LHV_oil;
+ 602  phi_saf_lt(s,t,'biooil')    = LHV_biooil;
+ 603  phi_saf_lt(s,t,'woodchips') = LHV_woodchips;
+ 604   
+ 605  phi_saf_smn_ht(s,t,'coke')     = LHV_coke;
+ 606  phi_saf_smn_ht(s,t,'biochar')  = LHV_biochar;
+ 607  phi_saf_smn_ht(s,t,'COgas')    = LHV_COgas;
+ 608  phi_saf_smn_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 609  phi_saf_smn_ht(s,t,'natgas')   = LHV_natgas;
+ 610  phi_saf_smn_ht(s,t,'biogas')   = LHV_biogas;
+ 611   
+ 612  phi_saf_smn_lt(s,t,'oil')       = LHV_oil;
+ 613  phi_saf_smn_lt(s,t,'biooil')    = LHV_biooil;
+ 614  phi_saf_smn_lt(s,t,'woodchips') = LHV_woodchips;
+ 615   
+ 616  * =========================
+ 617  * Solve
+ 618  * =========================
+ 619  Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
+ 620   
+ 621  Display CO2_coke_sint.l, CO2_offgas_pot.l, CO2_atm_offgas.l;
+ 622   
+ 623  * ===== Per-period cost breakdown =====
+ 624  Set costcat / fixed, ore, buysinter, elec, fuel_SAF, fuel_sint,
+ 625                quartz, silicon, ccs_var_ts, ccs_steam, ets,
+ 626                capex_ccs, capex_biocarb, total /;
+ 627  Parameter CostByT(t,costcat) "Cost breakdown by period (EUR)"
+ 628            TotalCost_t(t)      "Total cost per period (EUR)"
+ 629            TotalCost_check     "Sum over periods (EUR)";
+ 630   
+ 631  CostByT(t,'fixed')     = FIXEDCOST(t);
+ 632  CostByT(t,'ore')       = C_ore(t)       * uOre.l(t);
+ 633  CostByT(t,'buysinter') = C_buysinter(t) * bSinter.l(t);
+ 634   
+ 635  CostByT(t,'elec') = C_elec(t) * ( sum(s, eSAF.l(s,t)) + eSint.l(t) + eCCS_el.l(t) );
+ 636   
+ 637  CostByT(t,'fuel_SAF')  = sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF.l(s,t,fuel_all) + uSAF_SiMn.l(s,t,fuel_all) )));
+ 638  CostByT(t,'fuel_sint') =   sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT.l(t,fuel_lt))
+ 639                           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT.l(t,fuel_ht));
+ 640   
+ 641  CostByT(t,'quartz')  = sum(s, C_quartz(t) * bQuartz.l(s,t));
+ 642  CostByT(t,'silicon') = sum(s, C_Si(t)     * bSi.l(s,t));
+ 643   
+ 644  CostByT(t,'ccs_var_ts') = ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured.l(t);
+ 645  CostByT(t,'ccs_steam')  = C_CCS_steam(t) * qCCS_th.l(t);
+ 646   
+ 647  CostByT(t,'ets') = C_ets(t) * CO2_ets.l(t);
+ 648   
+ 649  CostByT(t,'capex_ccs')     = 0;
+ 650  CostByT(t,'capex_ccs')$y(t)     = C_CCS_capex(t)       * qCCS.l(t);
+ 651  CostByT(t,'capex_biocarb') = 0;
+ 652  CostByT(t,'capex_biocarb')$y(t) = C_Biocarbon_capex(t) * qBiocarbon.l(t);
+ 653   
+ 654  CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinter')
+ 655                     + CostByT(t,'elec')  + CostByT(t,'fuel_SAF') + CostByT(t,'fuel_sint')
+ 656                     + CostByT(t,'quartz') + CostByT(t,'silicon')
+ 657                     + CostByT(t,'ccs_var_ts') + CostByT(t,'ccs_steam') + CostByT(t,'ets')
+ 658                     + CostByT(t,'capex_ccs') + CostByT(t,'capex_biocarb');
+ 659   
+ 660  TotalCost_t(t)  = CostByT(t,'total');
+ 661  TotalCost_check = sum(t, TotalCost_t(t));
+ 662   
+ 663  execute_unload 'output_test_3.gdx'
+ 664      CO2_offgas_pot.l, CO2_atm_offgas.l,
+ 665      pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
+ 666      pSinter.l, bSinter.l, eSAF.l, eSint.l,
+ 667      bQuartz.l, bSi.l,
+ 668      CO2_captured.l, CO2_total_net.l, qCCS.l, eCCS_el.l, qCCS_th.l,
+ 669      qBiocarbon.l, biocap.l,
+ 670      CostByT, TotalCost_t, TotalCost_check, costcat
+ 671      uSAF.l,
+ 672      uSAF_SiMn.l,
+ 673      uSint_LT.l,
+ 674      uSint_HT.l;
+ 675   
+ 676  option decimals=6;
+ 677   
+ 678  Display CO2_coke_sint.l, CO2_offgas.l;
+ 679   
+ 680  Parameter CO2_total(t) "Total CO2 per period (t, net)";
+ 681  CO2_total(t) = CO2_total_net.l(t);
+ 682  Scalar CO2_total_all "Total CO2 over all periods (t, net)";
+ 683  CO2_total_all = sum(t, CO2_total(t));
+ 684  Display CO2_total, CO2_total_all;
+ 685   
+ 686  Parameter
+ 687      ProdTot(t)         "Total FeMn+SiMn (t)"
+ 688      OffgasProd(s,t)    "Off-gas produced per SAF (t)"
+ 689      OffgasFlared(t)    "Flared off-gas (t)"
+ 690      ETS_cost(t)        "ETS cost per period (eur)"
+ 691      CO2_intensity(t)   "CO2 intensity vs total product (t CO2/t product)";
+ 692   
+ 693  ProdTot(t)      = sum(s, pFeMn.l(s,t) + pSiMn.l(s,t));
+ 694  OffgasProd(s,t) = gOffgas.l(s,t);
+ 695  OffgasFlared(t) = sum(s, gOffgas.l(s,t)) - D_offgas(t);
+ 696  ETS_cost(t)     = C_ets(t) * CO2_ets.l(t);
+ 697   
+ 698  Scalar ep /1e-9/;
+ 699  CO2_intensity(t) = CO2_total(t) / max(ProdTot(t), ep);
+ 700   
+ 701  Display ProdTot, OffgasProd, OffgasFlared, ETS_cost, CO2_intensity;
+
+
+COMPILATION TIME     =        0.000 SECONDS      3 MB  39.1.1 dbf03b78 WEX-WEI
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 2
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+Equation Listing    SOLVE FeMn_SiMn_Opt Using LP From line 619
+
+
+---- dem_FeMn  =E=  
+
+dem_FeMn(t1)..  pFeMn(s1,t1) + pFeMn(s2,t1) =E= 1 ; (LHS = 0, INFES = 1 ****)
+     
+dem_FeMn(t2)..  pFeMn(s1,t2) + pFeMn(s2,t2) =E= 1 ; (LHS = 0, INFES = 1 ****)
+     
+dem_FeMn(t3)..  pFeMn(s1,t3) + pFeMn(s2,t3) =E= 1 ; (LHS = 0, INFES = 1 ****)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- dem_SiMn  =E=  
+
+dem_SiMn(t1)..  pSiMn(s1,t1) + pSiMn(s2,t1) =E= 0 ; (LHS = 0)
+     
+dem_SiMn(t2)..  pSiMn(s1,t2) + pSiMn(s2,t2) =E= 0 ; (LHS = 0)
+     
+dem_SiMn(t3)..  pSiMn(s1,t3) + pSiMn(s2,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ore_to_sinter  =E=  
+
+ore_to_sinter(t1)..  - pSinter(t1) + uOre(t1) =E= 0 ; (LHS = 0)
+     
+ore_to_sinter(t2)..  - pSinter(t2) + uOre(t2) =E= 0 ; (LHS = 0)
+     
+ore_to_sinter(t3)..  - pSinter(t3) + uOre(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- sinter_energy_total  =E=  
+
+sinter_energy_total(t1)..  - 1000*pSinter(t1) + LT_sint(t1) + HT_sint(t1) =E= 0 ; (LHS = 0)
+     
+sinter_energy_total(t2)..  - 1000*pSinter(t2) + LT_sint(t2) + HT_sint(t2) =E= 0 ; (LHS = 0)
+     
+sinter_energy_total(t3)..  - 1000*pSinter(t3) + LT_sint(t3) + HT_sint(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- sinter_ht_min  =L=  
+
+sinter_ht_min(t1)..  - HT_sint(t1) =L= 0 ; (LHS = 0)
+     
+sinter_ht_min(t2)..  - HT_sint(t2) =L= 0 ; (LHS = 0)
+     
+sinter_ht_min(t3)..  - HT_sint(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- sinter_power  =E=  
+
+sinter_power(t1)..  - 90*pSinter(t1) + eSint(t1) =E= 0 ; (LHS = 0)
+     
+sinter_power(t2)..  - 90*pSinter(t2) + eSint(t2) =E= 0 ; (LHS = 0)
+     
+sinter_power(t3)..  - 90*pSinter(t3) + eSint(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- sinter_use_balance  =E=  
+
+sinter_use_balance(t1)..  - pSinter(t1) - bSinter(t1) + uSinterFeMn(s1,t1) + uSinterFeMn(s2,t1) + uSinterSiMn(s1,t1) + uSinterSiMn(s2,t1) =E= 0 ; (LHS = 0)
+     
+sinter_use_balance(t2)..  - pSinter(t2) - bSinter(t2) + uSinterFeMn(s1,t2) + uSinterFeMn(s2,t2) + uSinterSiMn(s1,t2) + uSinterSiMn(s2,t2) =E= 0 ; (LHS = 0)
+     
+sinter_use_balance(t3)..  - pSinter(t3) - bSinter(t3) + uSinterFeMn(s1,t3) + uSinterFeMn(s2,t3) + uSinterSiMn(s1,t3) + uSinterSiMn(s2,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- lt_sint_def  =E=  
+
+lt_sint_def(t1)..  LT_sint(t1) =E= 0 ; (LHS = 0)
+     
+lt_sint_def(t2)..  LT_sint(t2) =E= 0 ; (LHS = 0)
+     
+lt_sint_def(t3)..  LT_sint(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- lt_sint_min_lt  =L=  
+
+lt_sint_min_lt(oil,t1)..  - uSint_LT(t1,oil) =L= 0 ; (LHS = 0)
+     
+lt_sint_min_lt(oil,t2)..  - uSint_LT(t2,oil) =L= 0 ; (LHS = 0)
+     
+lt_sint_min_lt(oil,t3)..  - uSint_LT(t3,oil) =L= 0 ; (LHS = 0)
+     
+REMAINING 12 ENTRIES SKIPPED
+
+
+---- ht_sint_def  =E=  
+
+ht_sint_def(t1)..  HT_sint(t1) - 8000*uSint_HT(t1,coke) =E= 0 ; (LHS = 0)
+     
+ht_sint_def(t2)..  HT_sint(t2) - 8000*uSint_HT(t2,coke) =E= 0 ; (LHS = 0)
+     
+ht_sint_def(t3)..  HT_sint(t3) - 8000*uSint_HT(t3,coke) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ht_sint_min_ht  =L=  
+
+ht_sint_min_ht(coke,t1)..  - uSint_HT(t1,coke) =L= 0 ; (LHS = 0)
+     
+ht_sint_min_ht(coke,t2)..  - uSint_HT(t2,coke) =L= 0 ; (LHS = 0)
+     
+ht_sint_min_ht(coke,t3)..  - uSint_HT(t3,coke) =L= 0 ; (LHS = 0)
+     
+REMAINING 27 ENTRIES SKIPPED
+
+
+---- FeMn_sinter_link  =E=  
+
+FeMn_sinter_link(s1,t1)..  - 1.8*pFeMn(s1,t1) + uSinterFeMn(s1,t1) =E= 0 ; (LHS = 0)
+     
+FeMn_sinter_link(s1,t2)..  - 1.8*pFeMn(s1,t2) + uSinterFeMn(s1,t2) =E= 0 ; (LHS = 0)
+     
+FeMn_sinter_link(s1,t3)..  - 1.8*pFeMn(s1,t3) + uSinterFeMn(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- FeMn_energy_total  =E=  
+
+FeMn_energy_total(s1,t1)..  - 2700*pFeMn(s1,t1) + LT_SAF_FeMn(s1,t1) + HT_SAF_FeMn(s1,t1) =E= 0 ; (LHS = 0)
+     
+FeMn_energy_total(s1,t2)..  - 2700*pFeMn(s1,t2) + LT_SAF_FeMn(s1,t2) + HT_SAF_FeMn(s1,t2) =E= 0 ; (LHS = 0)
+     
+FeMn_energy_total(s1,t3)..  - 2700*pFeMn(s1,t3) + LT_SAF_FeMn(s1,t3) + HT_SAF_FeMn(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- FeMn_ht_min  =L=  
+
+FeMn_ht_min(s1,t1)..  0.2*pFeMn(s1,t1) - HT_SAF_FeMn(s1,t1) =L= 0 ; (LHS = 0)
+     
+FeMn_ht_min(s1,t2)..  0.2*pFeMn(s1,t2) - HT_SAF_FeMn(s1,t2) =L= 0 ; (LHS = 0)
+     
+FeMn_ht_min(s1,t3)..  0.2*pFeMn(s1,t3) - HT_SAF_FeMn(s1,t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- lt_saf_femn_def  =E=  
+
+lt_saf_femn_def(s1,t1)..  LT_SAF_FeMn(s1,t1) - 1160*uSAF(s1,t1,oil) - 500*uSAF(s1,t1,biooil) - 2500*uSAF(s1,t1,woodchips) =E= 0 ; (LHS = 0)
+     
+lt_saf_femn_def(s1,t2)..  LT_SAF_FeMn(s1,t2) - 1160*uSAF(s1,t2,oil) - 500*uSAF(s1,t2,biooil) - 2500*uSAF(s1,t2,woodchips) =E= 0 ; (LHS = 0)
+     
+lt_saf_femn_def(s1,t3)..  LT_SAF_FeMn(s1,t3) - 1160*uSAF(s1,t3,oil) - 500*uSAF(s1,t3,biooil) - 2500*uSAF(s1,t3,woodchips) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- lt_saf_femn_min  =L=  
+
+lt_saf_femn_min(s1,t1,oil)..  - uSAF(s1,t1,oil) =L= 0 ; (LHS = 0)
+     
+lt_saf_femn_min(s1,t1,biooil)..  - uSAF(s1,t1,biooil) =L= 0 ; (LHS = 0)
+     
+lt_saf_femn_min(s1,t1,woodchips)..  - uSAF(s1,t1,woodchips) =L= 0 ; (LHS = 0)
+     
+REMAINING 27 ENTRIES SKIPPED
+
+
+---- ht_saf_femn_def  =E=  
+
+ht_saf_femn_def(s1,t1)..  HT_SAF_FeMn(s1,t1) - 8000*uSAF(s1,t1,coke) - 240*uSAF(s1,t1,COgas) - 3330*uSAF(s1,t1,hydrogen) - 1390*uSAF(s1,t1,natgas) - 600*uSAF(s1,t1,biogas) - 7000*uSAF(s1,t1,biochar) =E= 0 ; (LHS = 0)
+     
+ht_saf_femn_def(s1,t2)..  HT_SAF_FeMn(s1,t2) - 8000*uSAF(s1,t2,coke) - 240*uSAF(s1,t2,COgas) - 3330*uSAF(s1,t2,hydrogen) - 1390*uSAF(s1,t2,natgas) - 600*uSAF(s1,t2,biogas) - 7000*uSAF(s1,t2,biochar) =E= 0 ; (LHS = 0)
+     
+ht_saf_femn_def(s1,t3)..  HT_SAF_FeMn(s1,t3) - 8000*uSAF(s1,t3,coke) - 240*uSAF(s1,t3,COgas) - 3330*uSAF(s1,t3,hydrogen) - 1390*uSAF(s1,t3,natgas) - 600*uSAF(s1,t3,biogas) - 7000*uSAF(s1,t3,biochar) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- ht_saf_femn_min  =L=  
+
+ht_saf_femn_min(s1,t1,coke)..  - uSAF(s1,t1,coke) =L= 0 ; (LHS = 0)
+     
+ht_saf_femn_min(s1,t1,COgas)..  - uSAF(s1,t1,COgas) =L= 0 ; (LHS = 0)
+     
+ht_saf_femn_min(s1,t1,hydrogen)..  - uSAF(s1,t1,hydrogen) =L= 0 ; (LHS = 0)
+     
+REMAINING 57 ENTRIES SKIPPED
+
+
+---- slag_def  =E=  
+
+slag_def(s1,t1)..  - 0.3*uSinterFeMn(s1,t1) + pSlag(s1,t1) =E= 0 ; (LHS = 0)
+     
+slag_def(s1,t2)..  - 0.3*uSinterFeMn(s1,t2) + pSlag(s1,t2) =E= 0 ; (LHS = 0)
+     
+slag_def(s1,t3)..  - 0.3*uSinterFeMn(s1,t3) + pSlag(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- slag_tot_def  =L=  
+
+slag_tot_def(t1)..  - pSlag(s1,t1) - pSlag(s2,t1) + pSlagTot(t1) =L= 0 ; (LHS = 0)
+     
+slag_tot_def(t2)..  - pSlag(s1,t2) - pSlag(s2,t2) + pSlagTot(t2) =L= 0 ; (LHS = 0)
+     
+slag_tot_def(t3)..  - pSlag(s1,t3) - pSlag(s2,t3) + pSlagTot(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- SiMn_material_balance  =E=  
+
+SiMn_material_balance(t1)..  - pSiMn_Si(s1,t1) - pSiMn_Si(s2,t1) - pSiMn_SiO2(s1,t1) - pSiMn_SiO2(s2,t1) + 1.8*uSinterSiMn_Si(s1,t1) + 1.8*uSinterSiMn_Si(s2,t1) + 1.8*uSinterSiMn_SiO2(s1,t1) + 1.8*uSinterSiMn_SiO2(s2,t1) + 0.6*pSlagTot(t1) =E= 0 ; (LHS = 0)
+     
+SiMn_material_balance(t2)..  - pSiMn_Si(s1,t2) - pSiMn_Si(s2,t2) - pSiMn_SiO2(s1,t2) - pSiMn_SiO2(s2,t2) + 1.8*uSinterSiMn_Si(s1,t2) + 1.8*uSinterSiMn_Si(s2,t2) + 1.8*uSinterSiMn_SiO2(s1,t2) + 1.8*uSinterSiMn_SiO2(s2,t2) + 0.6*pSlagTot(t2) =E= 0 ; (LHS = 0)
+     
+SiMn_material_balance(t3)..  - pSiMn_Si(s1,t3) - pSiMn_Si(s2,t3) - pSiMn_SiO2(s1,t3) - pSiMn_SiO2(s2,t3) + 1.8*uSinterSiMn_Si(s1,t3) + 1.8*uSinterSiMn_Si(s2,t3) + 1.8*uSinterSiMn_SiO2(s1,t3) + 1.8*uSinterSiMn_SiO2(s2,t3) + 0.6*pSlagTot(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- pSiMn_split_def  =E=  
+
+pSiMn_split_def(s1,t1)..  pSiMn(s1,t1) - pSiMn_Si(s1,t1) - pSiMn_SiO2(s1,t1) =E= 0 ; (LHS = 0)
+     
+pSiMn_split_def(s1,t2)..  pSiMn(s1,t2) - pSiMn_Si(s1,t2) - pSiMn_SiO2(s1,t2) =E= 0 ; (LHS = 0)
+     
+pSiMn_split_def(s1,t3)..  pSiMn(s1,t3) - pSiMn_Si(s1,t3) - pSiMn_SiO2(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- uSinterSiMn_split_def  =E=  
+
+uSinterSiMn_split_def(s1,t1)..  uSinterSiMn(s1,t1) - uSinterSiMn_Si(s1,t1) - uSinterSiMn_SiO2(s1,t1) =E= 0 ; (LHS = 0)
+     
+uSinterSiMn_split_def(s1,t2)..  uSinterSiMn(s1,t2) - uSinterSiMn_Si(s1,t2) - uSinterSiMn_SiO2(s1,t2) =E= 0 ; (LHS = 0)
+     
+uSinterSiMn_split_def(s1,t3)..  uSinterSiMn(s1,t3) - uSinterSiMn_Si(s1,t3) - uSinterSiMn_SiO2(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- quartz_balance  =E=  
+
+quartz_balance(s1,t1)..  - 0.4*pSiMn_SiO2(s1,t1) + bQuartz(s1,t1) =E= 0 ; (LHS = 0)
+     
+quartz_balance(s1,t2)..  - 0.4*pSiMn_SiO2(s1,t2) + bQuartz(s1,t2) =E= 0 ; (LHS = 0)
+     
+quartz_balance(s1,t3)..  - 0.4*pSiMn_SiO2(s1,t3) + bQuartz(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- si_balance  =E=  
+
+si_balance(s1,t1)..  - 0.4*pSiMn_Si(s1,t1) + bSi(s1,t1) =E= 0 ; (LHS = 0)
+     
+si_balance(s1,t2)..  - 0.4*pSiMn_Si(s1,t2) + bSi(s1,t2) =E= 0 ; (LHS = 0)
+     
+si_balance(s1,t3)..  - 0.4*pSiMn_Si(s1,t3) + bSi(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- lt_saf_simn_def  =E=  
+
+lt_saf_simn_def(s1,t1)..  LT_SAF_SiMn(s1,t1) - 1160*uSAF_SiMn(s1,t1,oil) - 500*uSAF_SiMn(s1,t1,biooil) - 2500*uSAF_SiMn(s1,t1,woodchips) =E= 0 ; (LHS = 0)
+     
+lt_saf_simn_def(s1,t2)..  LT_SAF_SiMn(s1,t2) - 1160*uSAF_SiMn(s1,t2,oil) - 500*uSAF_SiMn(s1,t2,biooil) - 2500*uSAF_SiMn(s1,t2,woodchips) =E= 0 ; (LHS = 0)
+     
+lt_saf_simn_def(s1,t3)..  LT_SAF_SiMn(s1,t3) - 1160*uSAF_SiMn(s1,t3,oil) - 500*uSAF_SiMn(s1,t3,biooil) - 2500*uSAF_SiMn(s1,t3,woodchips) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- ht_saf_simn_def  =E=  
+
+ht_saf_simn_def(s1,t1)..  HT_SAF_SiMn(s1,t1) - 8000*uSAF_SiMn(s1,t1,coke) - 240*uSAF_SiMn(s1,t1,COgas) - 3330*uSAF_SiMn(s1,t1,hydrogen) - 1390*uSAF_SiMn(s1,t1,natgas) - 600*uSAF_SiMn(s1,t1,biogas) - 7000*uSAF_SiMn(s1,t1,biochar) =E= 0 ; (LHS = 0)
+     
+ht_saf_simn_def(s1,t2)..  HT_SAF_SiMn(s1,t2) - 8000*uSAF_SiMn(s1,t2,coke) - 240*uSAF_SiMn(s1,t2,COgas) - 3330*uSAF_SiMn(s1,t2,hydrogen) - 1390*uSAF_SiMn(s1,t2,natgas) - 600*uSAF_SiMn(s1,t2,biogas) - 7000*uSAF_SiMn(s1,t2,biochar) =E= 0 ; (LHS = 0)
+     
+ht_saf_simn_def(s1,t3)..  HT_SAF_SiMn(s1,t3) - 8000*uSAF_SiMn(s1,t3,coke) - 240*uSAF_SiMn(s1,t3,COgas) - 3330*uSAF_SiMn(s1,t3,hydrogen) - 1390*uSAF_SiMn(s1,t3,natgas) - 600*uSAF_SiMn(s1,t3,biogas) - 7000*uSAF_SiMn(s1,t3,biochar) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- SiMn_energy_total  =E=  
+
+SiMn_energy_total(s1,t1)..  - 2500*pSiMn_Si(s1,t1) - 4500*pSiMn_SiO2(s1,t1) + LT_SAF_SiMn(s1,t1) + HT_SAF_SiMn(s1,t1) =E= 0 ; (LHS = 0)
+     
+SiMn_energy_total(s1,t2)..  - 2500*pSiMn_Si(s1,t2) - 4500*pSiMn_SiO2(s1,t2) + LT_SAF_SiMn(s1,t2) + HT_SAF_SiMn(s1,t2) =E= 0 ; (LHS = 0)
+     
+SiMn_energy_total(s1,t3)..  - 2500*pSiMn_Si(s1,t3) - 4500*pSiMn_SiO2(s1,t3) + LT_SAF_SiMn(s1,t3) + HT_SAF_SiMn(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- SiMn_ht_min  =L=  
+
+SiMn_ht_min(s1,t1)..  - HT_SAF_SiMn(s1,t1) =L= 0 ; (LHS = 0)
+     
+SiMn_ht_min(s1,t2)..  - HT_SAF_SiMn(s1,t2) =L= 0 ; (LHS = 0)
+     
+SiMn_ht_min(s1,t3)..  - HT_SAF_SiMn(s1,t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- e_saf_def  =E=  
+
+e_saf_def(s1,t1)..  - 2850*pFeMn(s1,t1) - 2500*pSiMn_Si(s1,t1) - 4500*pSiMn_SiO2(s1,t1) + eSAF(s1,t1) =E= 0 ; (LHS = 0)
+     
+e_saf_def(s1,t2)..  - 2850*pFeMn(s1,t2) - 2500*pSiMn_Si(s1,t2) - 4500*pSiMn_SiO2(s1,t2) + eSAF(s1,t2) =E= 0 ; (LHS = 0)
+     
+e_saf_def(s1,t3)..  - 2850*pFeMn(s1,t3) - 2500*pSiMn_Si(s1,t3) - 4500*pSiMn_SiO2(s1,t3) + eSAF(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- offgas_def  =E=  
+
+offgas_def(s1,t1)..  - 1.8*uSAF(s1,t1,oil) - 1.8*uSAF(s1,t1,biooil) - 1.8*uSAF(s1,t1,woodchips) - 1.8*uSAF(s1,t1,coke) - 1.8*uSAF(s1,t1,COgas) - 1.8*uSAF(s1,t1,hydrogen) - 1.8*uSAF(s1,t1,natgas) - 1.8*uSAF(s1,t1,biogas) - 1.8*uSAF(s1,t1,biochar) - 1.8*uSAF_SiMn(s1,t1,oil) - 1.8*uSAF_SiMn(s1,t1,biooil) - 1.8*uSAF_SiMn(s1,t1,woodchips) - 1.8*uSAF_SiMn(s1,t1,coke) - 1.8*uSAF_SiMn(s1,t1,COgas) - 1.8*uSAF_SiMn(s1,t1,hydrogen) - 1.8*uSAF_SiMn(s1,t1,natgas) - 1.8*uSAF_SiMn(s1,t1,biogas) - 1.8*uSAF_SiMn(s1,t1,biochar) + gOffgas(s1,t1) =E= 0 ; (LHS = 0)
+     
+offgas_def(s1,t2)..  - 1.8*uSAF(s1,t2,oil) - 1.8*uSAF(s1,t2,biooil) - 1.8*uSAF(s1,t2,woodchips) - 1.8*uSAF(s1,t2,coke) - 1.8*uSAF(s1,t2,COgas) - 1.8*uSAF(s1,t2,hydrogen) - 1.8*uSAF(s1,t2,natgas) - 1.8*uSAF(s1,t2,biogas) - 1.8*uSAF(s1,t2,biochar) - 1.8*uSAF_SiMn(s1,t2,oil) - 1.8*uSAF_SiMn(s1,t2,biooil) - 1.8*uSAF_SiMn(s1,t2,woodchips) - 1.8*uSAF_SiMn(s1,t2,coke) - 1.8*uSAF_SiMn(s1,t2,COgas) - 1.8*uSAF_SiMn(s1,t2,hydrogen) - 1.8*uSAF_SiMn(s1,t2,natgas) - 1.8*uSAF_SiMn(s1,t2,biogas) - 1.8*uSAF_SiMn(s1,t2,biochar) + gOffgas(s1,t2) =E= 0 ; (LHS = 0)
+     
+offgas_def(s1,t3)..  - 1.8*uSAF(s1,t3,oil) - 1.8*uSAF(s1,t3,biooil) - 1.8*uSAF(s1,t3,woodchips) - 1.8*uSAF(s1,t3,coke) - 1.8*uSAF(s1,t3,COgas) - 1.8*uSAF(s1,t3,hydrogen) - 1.8*uSAF(s1,t3,natgas) - 1.8*uSAF(s1,t3,biogas) - 1.8*uSAF(s1,t3,biochar) - 1.8*uSAF_SiMn(s1,t3,oil) - 1.8*uSAF_SiMn(s1,t3,biooil) - 1.8*uSAF_SiMn(s1,t3,woodchips) - 1.8*uSAF_SiMn(s1,t3,coke) - 1.8*uSAF_SiMn(s1,t3,COgas) - 1.8*uSAF_SiMn(s1,t3,hydrogen) - 1.8*uSAF_SiMn(s1,t3,natgas) - 1.8*uSAF_SiMn(s1,t3,biogas) - 1.8*uSAF_SiMn(s1,t3,biochar) + gOffgas(s1,t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- CO2_coke_sint_def  =E=  
+
+CO2_coke_sint_def(t1)..  - 1.832*pSinter(t1) + CO2_coke_sint(t1) =E= 0 ; (LHS = 0)
+     
+CO2_coke_sint_def(t2)..  - 1.832*pSinter(t2) + CO2_coke_sint(t2) =E= 0 ; (LHS = 0)
+     
+CO2_coke_sint_def(t3)..  - 1.832*pSinter(t3) + CO2_coke_sint(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- CO2_offgas_def  =E=  
+
+CO2_offgas_def(t1)..  - 1.5*gOffgas(s1,t1) - 1.5*gOffgas(s2,t1) + CO2_offgas(t1) =E= 0 ; (LHS = 0)
+     
+CO2_offgas_def(t2)..  - 1.5*gOffgas(s1,t2) - 1.5*gOffgas(s2,t2) + CO2_offgas(t2) =E= 0 ; (LHS = 0)
+     
+CO2_offgas_def(t3)..  - 1.5*gOffgas(s1,t3) - 1.5*gOffgas(s2,t3) + CO2_offgas(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- coke_total_def  =E=  
+
+coke_total_def(t1)..  - uSAF(s1,t1,coke) - uSAF(s2,t1,coke) + uTotalCoke_SAF(t1) =E= 0 ; (LHS = 0)
+     
+coke_total_def(t2)..  - uSAF(s1,t2,coke) - uSAF(s2,t2,coke) + uTotalCoke_SAF(t2) =E= 0 ; (LHS = 0)
+     
+coke_total_def(t3)..  - uSAF(s1,t3,coke) - uSAF(s2,t3,coke) + uTotalCoke_SAF(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- capacity_saf  =L=  
+
+capacity_saf(s1,t1)..  pFeMn(s1,t1) + pSiMn(s1,t1) =L= 120000 ; (LHS = 0)
+     
+capacity_saf(s1,t2)..  pFeMn(s1,t2) + pSiMn(s1,t2) =L= 120000 ; (LHS = 0)
+     
+capacity_saf(s1,t3)..  pFeMn(s1,t3) + pSiMn(s1,t3) =L= 120000 ; (LHS = 0)
+     
+REMAINING 7 ENTRIES SKIPPED
+
+
+---- capacity_sinter  =L=  
+
+capacity_sinter(t1)..  pSinter(t1) =L= 120000 ; (LHS = 0)
+     
+capacity_sinter(t2)..  pSinter(t2) =L= 120000 ; (LHS = 0)
+     
+capacity_sinter(t3)..  pSinter(t3) =L= 120000 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- biocap_def  =E=  
+
+biocap_def(t1)..  biocap(t1) =E= 0 ; (LHS = 0)
+     
+biocap_def(t2)..  biocap(t2) =E= 0 ; (LHS = 0)
+     
+biocap_def(t3)..  biocap(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- biocarbon_use_limit  =L=  
+
+biocarbon_use_limit(t1)..  uSAF(s1,t1,biochar) + uSAF(s2,t1,biochar) + uSAF_SiMn(s1,t1,biochar) + uSAF_SiMn(s2,t1,biochar) + uSint_HT(t1,biochar) - biocap(t1) =L= 0 ; (LHS = 0)
+     
+biocarbon_use_limit(t2)..  uSAF(s1,t2,biochar) + uSAF(s2,t2,biochar) + uSAF_SiMn(s1,t2,biochar) + uSAF_SiMn(s2,t2,biochar) + uSint_HT(t2,biochar) - biocap(t2) =L= 0 ; (LHS = 0)
+     
+biocarbon_use_limit(t3)..  uSAF(s1,t3,biochar) + uSAF(s2,t3,biochar) + uSAF_SiMn(s1,t3,biochar) + uSAF_SiMn(s2,t3,biochar) + uSint_HT(t3,biochar) - biocap(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- co2_offgas_pot_def  =E=  
+
+co2_offgas_pot_def(t1)..  - 1.5*gOffgas(s1,t1) - 1.5*gOffgas(s2,t1) + CO2_offgas_pot(t1) =E= 0 ; (LHS = 0)
+     
+co2_offgas_pot_def(t2)..  - 1.5*gOffgas(s1,t2) - 1.5*gOffgas(s2,t2) + CO2_offgas_pot(t2) =E= 0 ; (LHS = 0)
+     
+co2_offgas_pot_def(t3)..  - 1.5*gOffgas(s1,t3) - 1.5*gOffgas(s2,t3) + CO2_offgas_pot(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ccs_stream_upper  =L=  
+
+ccs_stream_upper(t1)..  fCCS(t1) - CO2_offgas_pot(t1) =L= 0 ; (LHS = 0)
+     
+ccs_stream_upper(t2)..  fCCS(t2) - CO2_offgas_pot(t2) =L= 0 ; (LHS = 0)
+     
+ccs_stream_upper(t3)..  fCCS(t3) - CO2_offgas_pot(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ccs_capacity_upper  =L=  
+
+ccs_capacity_upper(t1)..  fCCS(t1) =L= 0 ; (LHS = 0)
+     
+ccs_capacity_upper(t2)..  fCCS(t2) =L= 0 ; (LHS = 0)
+     
+ccs_capacity_upper(t3)..  fCCS(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ccs_capture_eff  =L=  
+
+ccs_capture_eff(t1)..  - 0.9*fCCS(t1) + CO2_captured(t1) =L= 0 ; (LHS = 0)
+     
+ccs_capture_eff(t2)..  - 0.9*fCCS(t2) + CO2_captured(t2) =L= 0 ; (LHS = 0)
+     
+ccs_capture_eff(t3)..  - 0.9*fCCS(t3) + CO2_captured(t3) =L= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- co2_atm_offgas_def  =E=  
+
+co2_atm_offgas_def(t1)..  CO2_captured(t1) - CO2_offgas_pot(t1) + CO2_atm_offgas(t1) =E= 0 ; (LHS = 0)
+     
+co2_atm_offgas_def(t2)..  CO2_captured(t2) - CO2_offgas_pot(t2) + CO2_atm_offgas(t2) =E= 0 ; (LHS = 0)
+     
+co2_atm_offgas_def(t3)..  CO2_captured(t3) - CO2_offgas_pot(t3) + CO2_atm_offgas(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- co2_total_net_def  =E=  
+
+co2_total_net_def(t1)..  - CO2_coke_sint(t1) - CO2_atm_offgas(t1) + CO2_total_net(t1) =E= 0 ; (LHS = 0)
+     
+co2_total_net_def(t2)..  - CO2_coke_sint(t2) - CO2_atm_offgas(t2) + CO2_total_net(t2) =E= 0 ; (LHS = 0)
+     
+co2_total_net_def(t3)..  - CO2_coke_sint(t3) - CO2_atm_offgas(t3) + CO2_total_net(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ccs_el_def  =E=  
+
+ccs_el_def(t1)..  eCCS_el(t1) =E= 0 ; (LHS = 0)
+     
+ccs_el_def(t2)..  eCCS_el(t2) =E= 0 ; (LHS = 0)
+     
+ccs_el_def(t3)..  eCCS_el(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- ccs_th_def  =E=  
+
+ccs_th_def(t1)..  qCCS_th(t1) =E= 0 ; (LHS = 0)
+     
+ccs_th_def(t2)..  qCCS_th(t2) =E= 0 ; (LHS = 0)
+     
+ccs_th_def(t3)..  qCCS_th(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- invest_only_y  =E=  
+
+invest_only_y(t1)..  qCCS(t1) =E= 0 ; (LHS = 0)
+     
+invest_only_y(t2)..  qCCS(t2) =E= 0 ; (LHS = 0)
+     
+invest_only_y(t3)..  qCCS(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING ENTRY SKIPPED
+
+
+---- invest_biocarbon_only_y  =E=  
+
+invest_biocarbon_only_y(t1)..  qBiocarbon(t1) =E= 0 ; (LHS = 0)
+     
+invest_biocarbon_only_y(t2)..  qBiocarbon(t2) =E= 0 ; (LHS = 0)
+     
+invest_biocarbon_only_y(t3)..  qBiocarbon(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING ENTRY SKIPPED
+
+
+---- co2_bio_pre_def  =E=  Biogenic CO2 pre-capture
+
+co2_bio_pre_def(t1)..  - 3*uSAF(s1,t1,biooil) - 1.8*uSAF(s1,t1,woodchips) - 2*uSAF(s1,t1,biogas) - 3*uSAF(s1,t1,biochar) - 3*uSAF(s2,t1,biooil) - 1.8*uSAF(s2,t1,woodchips) - 2*uSAF(s2,t1,biogas) - 3*uSAF(s2,t1,biochar) - 3*uSAF_SiMn(s1,t1,biooil) - 1.8*uSAF_SiMn(s1,t1,woodchips) - 2*uSAF_SiMn(s1,t1,biogas) - 3*uSAF_SiMn(s1,t1,biochar) - 3*uSAF_SiMn(s2,t1,biooil) - 1.8*uSAF_SiMn(s2,t1,woodchips) - 2*uSAF_SiMn(s2,t1,biogas) - 3*uSAF_SiMn(s2,t1,biochar) - 3*uSint_LT(t1,biooil) - 1.8*uSint_LT(t1,woodchips) - 2*uSint_HT(t1,biogas) - 3*uSint_HT(t1,biochar) + CO2_bio_pre(t1) =E= 0 ; (LHS = 0)
+     
+co2_bio_pre_def(t2)..  - 3*uSAF(s1,t2,biooil) - 1.8*uSAF(s1,t2,woodchips) - 2*uSAF(s1,t2,biogas) - 3*uSAF(s1,t2,biochar) - 3*uSAF(s2,t2,biooil) - 1.8*uSAF(s2,t2,woodchips) - 2*uSAF(s2,t2,biogas) - 3*uSAF(s2,t2,biochar) - 3*uSAF_SiMn(s1,t2,biooil) - 1.8*uSAF_SiMn(s1,t2,woodchips) - 2*uSAF_SiMn(s1,t2,biogas) - 3*uSAF_SiMn(s1,t2,biochar) - 3*uSAF_SiMn(s2,t2,biooil) - 1.8*uSAF_SiMn(s2,t2,woodchips) - 2*uSAF_SiMn(s2,t2,biogas) - 3*uSAF_SiMn(s2,t2,biochar) - 3*uSint_LT(t2,biooil) - 1.8*uSint_LT(t2,woodchips) - 2*uSint_HT(t2,biogas) - 3*uSint_HT(t2,biochar) + CO2_bio_pre(t2) =E= 0 ; (LHS = 0)
+     
+co2_bio_pre_def(t3)..  - 3*uSAF(s1,t3,biooil) - 1.8*uSAF(s1,t3,woodchips) - 2*uSAF(s1,t3,biogas) - 3*uSAF(s1,t3,biochar) - 3*uSAF(s2,t3,biooil) - 1.8*uSAF(s2,t3,woodchips) - 2*uSAF(s2,t3,biogas) - 3*uSAF(s2,t3,biochar) - 3*uSAF_SiMn(s1,t3,biooil) - 1.8*uSAF_SiMn(s1,t3,woodchips) - 2*uSAF_SiMn(s1,t3,biogas) - 3*uSAF_SiMn(s1,t3,biochar) - 3*uSAF_SiMn(s2,t3,biooil) - 1.8*uSAF_SiMn(s2,t3,woodchips) - 2*uSAF_SiMn(s2,t3,biogas) - 3*uSAF_SiMn(s2,t3,biochar) - 3*uSint_LT(t3,biooil) - 1.8*uSint_LT(t3,woodchips) - 2*uSint_HT(t3,biogas) - 3*uSint_HT(t3,biochar) + CO2_bio_pre(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- co2_ets_def  =E=  ETS-accounted emissions
+
+co2_ets_def(t1)..  - CO2_total_net(t1) + CO2_bio_pre(t1) + CO2_ets(t1) =E= 0 ; (LHS = 0)
+     
+co2_ets_def(t2)..  - CO2_total_net(t2) + CO2_bio_pre(t2) + CO2_ets(t2) =E= 0 ; (LHS = 0)
+     
+co2_ets_def(t3)..  - CO2_total_net(t3) + CO2_bio_pre(t3) + CO2_ets(t3) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- obj  =E=  
+
+obj..  - 500*bSinter(t1) - 500*bSinter(t2) - 500*bSinter(t3) - 500*bSinter(t4) - 500*bSinter(t5) - 100*uOre(t1) - 100*uOre(t2) - 100*uOre(t3) - 100*uOre(t4) - 100*uOre(t5) - 50*bQuartz(s1,t1) - 50*bQuartz(s1,t2) - 50*bQuartz(s1,t3) - 50*bQuartz(s1,t4) - 50*bQuartz(s1,t5) - 50*bQuartz(s2,t1) - 50*bQuartz(s2,t2) - 50*bQuartz(s2,t3) - 50*bQuartz(s2,t4) - 50*bQuartz(s2,t5) - 250*bSi(s1,t1) - 250*bSi(s1,t2) - 250*bSi(s1,t3) - 250*bSi(s1,t4) - 250*bSi(s1,t5) - 250*bSi(s2,t1) - 250*bSi(s2,t2) - 250*bSi(s2,t3) - 250*bSi(s2,t4) - 250*bSi(s2,t5) - 0.01*eSAF(s1,t1) - 0.01*eSAF(s1,t2) - 0.01*eSAF(s1,t3) - 0.01*eSAF(s1,t4) - 0.01*eSAF(s1,t5) - 0.01*eSAF(s2,t1) - 0.01*eSAF(s2,t2) - 0.01*eSAF(s2,t3) - 0.01*eSAF(s2,t4) - 0.01*eSAF(s2,t5) - 0.01*eSint(t1) - 0.01*eSint(t2) - 0.01*eSint(t3) - 0.01*eSint(t4) - 0.01*eSint(t5) - 5000*uSAF(s1,t1,oil) - 4500*uSAF(s1,t1,biooil) - 1200*uSAF(s1,t1,woodchips) - 300*uSAF(s1,t1,coke) - 5000*uSAF(s1,t1,COgas) - 2000*uSAF(s1,t1,hydrogen) - 1500*uSAF(s1,t1,natgas) - 1300*uSAF(s1,t1,biogas) - 400*uSAF(s1,t1,biochar) - 5000*uSAF(s1,t2,oil) - 4500*uSAF(s1,t2,biooil) - 1200*uSAF(s1,t2,woodchips) - 300*uSAF(s1,t2,coke) - 5000*uSAF(s1,t2,COgas) - 2000*uSAF(s1,t2,hydrogen) - 1500*uSAF(s1,t2,natgas) - 1300*uSAF(s1,t2,biogas) - 400*uSAF(s1,t2,biochar) - 5000*uSAF(s1,t3,oil) - 4500*uSAF(s1,t3,biooil) - 1200*uSAF(s1,t3,woodchips) - 300*uSAF(s1,t3,coke) - 5000*uSAF(s1,t3,COgas) - 2000*uSAF(s1,t3,hydrogen) - 1500*uSAF(s1,t3,natgas) - 1300*uSAF(s1,t3,biogas) - 400*uSAF(s1,t3,biochar) - 5000*uSAF(s1,t4,oil) - 4500*uSAF(s1,t4,biooil) - 1200*uSAF(s1,t4,woodchips) - 300*uSAF(s1,t4,coke) - 5000*uSAF(s1,t4,COgas) - 2000*uSAF(s1,t4,hydrogen) - 1500*uSAF(s1,t4,natgas) - 1300*uSAF(s1,t4,biogas) - 400*uSAF(s1,t4,biochar) - 5000*uSAF(s1,t5,oil) - 4500*uSAF(s1,t5,biooil) - 1200*uSAF(s1,t5,woodchips) - 300*uSAF(s1,t5,coke) - 5000*uSAF(s1,t5,COgas) - 2000*uSAF(s1,t5,hydrogen) - 1500*uSAF(s1,t5,natgas) - 1300*uSAF(s1,t5,biogas) - 400*uSAF(s1,t5,biochar) - 5000*uSAF(s2,t1,oil) - 4500*uSAF(s2,t1,biooil) - 1200*uSAF(s2,t1,woodchips) - 300*uSAF(s2,t1,coke) - 5000*uSAF(s2,t1,COgas) - 2000*uSAF(s2,t1,hydrogen) - 1500*uSAF(s2,t1,natgas) - 1300*uSAF(s2,t1,biogas) - 400*uSAF(s2,t1,biochar) - 5000*uSAF(s2,t2,oil) - 4500*uSAF(s2,t2,biooil) - 1200*uSAF(s2,t2,woodchips) - 300*uSAF(s2,t2,coke) - 5000*uSAF(s2,t2,COgas) - 2000*uSAF(s2,t2,hydrogen) - 1500*uSAF(s2,t2,natgas) - 1300*uSAF(s2,t2,biogas) - 400*uSAF(s2,t2,biochar) - 5000*uSAF(s2,t3,oil) - 4500*uSAF(s2,t3,biooil) - 1200*uSAF(s2,t3,woodchips) - 300*uSAF(s2,t3,coke) - 5000*uSAF(s2,t3,COgas) - 2000*uSAF(s2,t3,hydrogen) - 1500*uSAF(s2,t3,natgas) - 1300*uSAF(s2,t3,biogas) - 400*uSAF(s2,t3,biochar) - 5000*uSAF(s2,t4,oil) - 4500*uSAF(s2,t4,biooil) - 1200*uSAF(s2,t4,woodchips) - 300*uSAF(s2,t4,coke) - 5000*uSAF(s2,t4,COgas) - 2000*uSAF(s2,t4,hydrogen) - 1500*uSAF(s2,t4,natgas) - 1300*uSAF(s2,t4,biogas) - 400*uSAF(s2,t4,biochar) - 5000*uSAF(s2,t5,oil) - 4500*uSAF(s2,t5,biooil) - 1200*uSAF(s2,t5,woodchips) - 300*uSAF(s2,t5,coke) - 5000*uSAF(s2,t5,COgas) - 2000*uSAF(s2,t5,hydrogen) - 1500*uSAF(s2,t5,natgas) - 1300*uSAF(s2,t5,biogas) - 400*uSAF(s2,t5,biochar) - 5000*uSAF_SiMn(s1,t1,oil) - 4500*uSAF_SiMn(s1,t1,biooil) - 1200*uSAF_SiMn(s1,t1,woodchips) - 300*uSAF_SiMn(s1,t1,coke) - 5000*uSAF_SiMn(s1,t1,COgas) - 2000*uSAF_SiMn(s1,t1,hydrogen) - 1500*uSAF_SiMn(s1,t1,natgas) - 1300*uSAF_SiMn(s1,t1,biogas) - 400*uSAF_SiMn(s1,t1,biochar) - 5000*uSAF_SiMn(s1,t2,oil) - 4500*uSAF_SiMn(s1,t2,biooil) - 1200*uSAF_SiMn(s1,t2,woodchips) - 300*uSAF_SiMn(s1,t2,coke) - 5000*uSAF_SiMn(s1,t2,COgas) - 2000*uSAF_SiMn(s1,t2,hydrogen) - 1500*uSAF_SiMn(s1,t2,natgas) - 1300*uSAF_SiMn(s1,t2,biogas) - 400*uSAF_SiMn(s1,t2,biochar) - 5000*uSAF_SiMn(s1,t3,oil) - 4500*uSAF_SiMn(s1,t3,biooil) - 1200*uSAF_SiMn(s1,t3,woodchips) - 300*uSAF_SiMn(s1,t3,coke) - 5000*uSAF_SiMn(s1,t3,COgas) - 2000*uSAF_SiMn(s1,t3,hydrogen) - 1500*uSAF_SiMn(s1,t3,natgas) - 1300*uSAF_SiMn(s1,t3,biogas) - 400*uSAF_SiMn(s1,t3,biochar) - 5000*uSAF_SiMn(s1,t4,oil) - 4500*uSAF_SiMn(s1,t4,biooil) - 1200*uSAF_SiMn(s1,t4,woodchips) - 300*uSAF_SiMn(s1,t4,coke) - 5000*uSAF_SiMn(s1,t4,COgas) - 2000*uSAF_SiMn(s1,t4,hydrogen) - 1500*uSAF_SiMn(s1,t4,natgas) - 1300*uSAF_SiMn(s1,t4,biogas) - 400*uSAF_SiMn(s1,t4,biochar) - 5000*uSAF_SiMn(s1,t5,oil) - 4500*uSAF_SiMn(s1,t5,biooil) - 1200*uSAF_SiMn(s1,t5,woodchips) - 300*uSAF_SiMn(s1,t5,coke) - 5000*uSAF_SiMn(s1,t5,COgas) - 2000*uSAF_SiMn(s1,t5,hydrogen) - 1500*uSAF_SiMn(s1,t5,natgas) - 1300*uSAF_SiMn(s1,t5,biogas) - 400*uSAF_SiMn(s1,t5,biochar) - 5000*uSAF_SiMn(s2,t1,oil) - 4500*uSAF_SiMn(s2,t1,biooil) - 1200*uSAF_SiMn(s2,t1,woodchips) - 300*uSAF_SiMn(s2,t1,coke) - 5000*uSAF_SiMn(s2,t1,COgas) - 2000*uSAF_SiMn(s2,t1,hydrogen) - 1500*uSAF_SiMn(s2,t1,natgas) - 1300*uSAF_SiMn(s2,t1,biogas) - 400*uSAF_SiMn(s2,t1,biochar) - 5000*uSAF_SiMn(s2,t2,oil) - 4500*uSAF_SiMn(s2,t2,biooil) - 1200*uSAF_SiMn(s2,t2,woodchips) - 300*uSAF_SiMn(s2,t2,coke) - 5000*uSAF_SiMn(s2,t2,COgas) - 2000*uSAF_SiMn(s2,t2,hydrogen) - 1500*uSAF_SiMn(s2,t2,natgas) - 1300*uSAF_SiMn(s2,t2,biogas) - 400*uSAF_SiMn(s2,t2,biochar) - 5000*uSAF_SiMn(s2,t3,oil) - 4500*uSAF_SiMn(s2,t3,biooil) - 1200*uSAF_SiMn(s2,t3,woodchips) - 300*uSAF_SiMn(s2,t3,coke) - 5000*uSAF_SiMn(s2,t3,COgas) - 2000*uSAF_SiMn(s2,t3,hydrogen) - 1500*uSAF_SiMn(s2,t3,natgas) - 1300*uSAF_SiMn(s2,t3,biogas) - 400*uSAF_SiMn(s2,t3,biochar) - 5000*uSAF_SiMn(s2,t4,oil) - 4500*uSAF_SiMn(s2,t4,biooil) - 1200*uSAF_SiMn(s2,t4,woodchips) - 300*uSAF_SiMn(s2,t4,coke) - 5000*uSAF_SiMn(s2,t4,COgas) - 2000*uSAF_SiMn(s2,t4,hydrogen) - 1500*uSAF_SiMn(s2,t4,natgas) - 1300*uSAF_SiMn(s2,t4,biogas) - 400*uSAF_SiMn(s2,t4,biochar) - 5000*uSAF_SiMn(s2,t5,oil) - 4500*uSAF_SiMn(s2,t5,biooil) - 1200*uSAF_SiMn(s2,t5,woodchips) - 300*uSAF_SiMn(s2,t5,coke) - 5000*uSAF_SiMn(s2,t5,COgas) - 2000*uSAF_SiMn(s2,t5,hydrogen) - 1500*uSAF_SiMn(s2,t5,natgas) - 1300*uSAF_SiMn(s2,t5,biogas) - 400*uSAF_SiMn(s2,t5,biochar) - 5000*uSint_LT(t1,oil) - 4500*uSint_LT(t1,biooil) - 1200*uSint_LT(t1,woodchips) - 5000*uSint_LT(t2,oil) - 4500*uSint_LT(t2,biooil) - 1200*uSint_LT(t2,woodchips) - 5000*uSint_LT(t3,oil) - 4500*uSint_LT(t3,biooil) - 1200*uSint_LT(t3,woodchips) - 5000*uSint_LT(t4,oil) - 4500*uSint_LT(t4,biooil) - 1200*uSint_LT(t4,woodchips) - 5000*uSint_LT(t5,oil) - 4500*uSint_LT(t5,biooil) - 1200*uSint_LT(t5,woodchips) - 300*uSint_HT(t1,coke) - 5000*uSint_HT(t1,COgas) - 2000*uSint_HT(t1,hydrogen) - 1500*uSint_HT(t1,natgas) - 1300*uSint_HT(t1,biogas) - 400*uSint_HT(t1,biochar) - 300*uSint_HT(t2,coke) - 5000*uSint_HT(t2,COgas) - 2000*uSint_HT(t2,hydrogen) - 1500*uSint_HT(t2,natgas) - 1300*uSint_HT(t2,biogas) - 400*uSint_HT(t2,biochar) - 300*uSint_HT(t3,coke) - 5000*uSint_HT(t3,COgas) - 2000*uSint_HT(t3,hydrogen) - 1500*uSint_HT(t3,natgas) - 1300*uSint_HT(t3,biogas) - 400*uSint_HT(t3,biochar) - 300*uSint_HT(t4,coke) - 5000*uSint_HT(t4,COgas) - 2000*uSint_HT(t4,hydrogen) - 1500*uSint_HT(t4,natgas) - 1300*uSint_HT(t4,biogas) - 400*uSint_HT(t4,biochar) - 300*uSint_HT(t5,coke) - 5000*uSint_HT(t5,COgas) - 2000*uSint_HT(t5,hydrogen) - 1500*uSint_HT(t5,natgas) - 1300*uSint_HT(t5,biogas) - 400*uSint_HT(t5,biochar) - 100*qBiocarbon(t5) - 100*qCCS(t5) - 50*CO2_captured(t1) - 50*CO2_captured(t2) - 50*CO2_captured(t3) - 50*CO2_captured(t4) - 50*CO2_captured(t5) - 0.01*eCCS_el(t1) - 0.01*eCCS_el(t2) - 0.01*eCCS_el(t3) - 0.01*eCCS_el(t4) - 0.01*eCCS_el(t5) - 100*CO2_ets(t1) - 100*CO2_ets(t2) - 100*CO2_ets(t3) - 100*CO2_ets(t4) - 100*CO2_ets(t5) + TotalCost =E= 0 ; (LHS = 0)
+     
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 3
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+Column Listing      SOLVE FeMn_SiMn_Opt Using LP From line 619
+
+
+---- pFeMn  FeMn production (t)
+
+pFeMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_FeMn(t1)
+       -1.8     FeMn_sinter_link(s1,t1)
+    -2700       FeMn_energy_total(s1,t1)
+        0.2     FeMn_ht_min(s1,t1)
+    -2850       e_saf_def(s1,t1)
+        1       capacity_saf(s1,t1)
+
+pFeMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_FeMn(t2)
+       -1.8     FeMn_sinter_link(s1,t2)
+    -2700       FeMn_energy_total(s1,t2)
+        0.2     FeMn_ht_min(s1,t2)
+    -2850       e_saf_def(s1,t2)
+        1       capacity_saf(s1,t2)
+
+pFeMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_FeMn(t3)
+       -1.8     FeMn_sinter_link(s1,t3)
+    -2700       FeMn_energy_total(s1,t3)
+        0.2     FeMn_ht_min(s1,t3)
+    -2850       e_saf_def(s1,t3)
+        1       capacity_saf(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- pSiMn  SiMn total production (t)
+
+pSiMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_SiMn(t1)
+        1       pSiMn_split_def(s1,t1)
+        1       capacity_saf(s1,t1)
+
+pSiMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_SiMn(t2)
+        1       pSiMn_split_def(s1,t2)
+        1       capacity_saf(s1,t2)
+
+pSiMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       dem_SiMn(t3)
+        1       pSiMn_split_def(s1,t3)
+        1       capacity_saf(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- pSinter  sinter production (t)
+
+pSinter(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       ore_to_sinter(t1)
+    -1000       sinter_energy_total(t1)
+      -90       sinter_power(t1)
+       -1       sinter_use_balance(t1)
+       -1.832   CO2_coke_sint_def(t1)
+        1       capacity_sinter(t1)
+
+pSinter(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       ore_to_sinter(t2)
+    -1000       sinter_energy_total(t2)
+      -90       sinter_power(t2)
+       -1       sinter_use_balance(t2)
+       -1.832   CO2_coke_sint_def(t2)
+        1       capacity_sinter(t2)
+
+pSinter(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       ore_to_sinter(t3)
+    -1000       sinter_energy_total(t3)
+      -90       sinter_power(t3)
+       -1       sinter_use_balance(t3)
+       -1.832   CO2_coke_sint_def(t3)
+        1       capacity_sinter(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- bSinter  sinter bought (t)
+
+bSinter(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       sinter_use_balance(t1)
+     -500       obj
+
+bSinter(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       sinter_use_balance(t2)
+     -500       obj
+
+bSinter(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       sinter_use_balance(t3)
+     -500       obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- uOre  ore use (t)
+
+uOre(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ore_to_sinter(t1)
+     -100       obj
+
+uOre(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ore_to_sinter(t2)
+     -100       obj
+
+uOre(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ore_to_sinter(t3)
+     -100       obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- uSinterFeMn  sinter used to produce FeMn (t)
+
+uSinterFeMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t1)
+        1       FeMn_sinter_link(s1,t1)
+       -0.3     slag_def(s1,t1)
+
+uSinterFeMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t2)
+        1       FeMn_sinter_link(s1,t2)
+       -0.3     slag_def(s1,t2)
+
+uSinterFeMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t3)
+        1       FeMn_sinter_link(s1,t3)
+       -0.3     slag_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- uSinterSiMn  sinter used to produce SiMn (t)
+
+uSinterSiMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t1)
+        1       uSinterSiMn_split_def(s1,t1)
+
+uSinterSiMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t2)
+        1       uSinterSiMn_split_def(s1,t2)
+
+uSinterSiMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_use_balance(t3)
+        1       uSinterSiMn_split_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- pSiMn_Si  SiMn via Si route (t)
+
+pSiMn_Si(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t1)
+       -1       pSiMn_split_def(s1,t1)
+       -0.4     si_balance(s1,t1)
+    -2500       SiMn_energy_total(s1,t1)
+    -2500       e_saf_def(s1,t1)
+
+pSiMn_Si(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t2)
+       -1       pSiMn_split_def(s1,t2)
+       -0.4     si_balance(s1,t2)
+    -2500       SiMn_energy_total(s1,t2)
+    -2500       e_saf_def(s1,t2)
+
+pSiMn_Si(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t3)
+       -1       pSiMn_split_def(s1,t3)
+       -0.4     si_balance(s1,t3)
+    -2500       SiMn_energy_total(s1,t3)
+    -2500       e_saf_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- pSiMn_SiO2  SiMn via SiO2 route (t)
+
+pSiMn_SiO2(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t1)
+       -1       pSiMn_split_def(s1,t1)
+       -0.4     quartz_balance(s1,t1)
+    -4500       SiMn_energy_total(s1,t1)
+    -4500       e_saf_def(s1,t1)
+
+pSiMn_SiO2(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t2)
+       -1       pSiMn_split_def(s1,t2)
+       -0.4     quartz_balance(s1,t2)
+    -4500       SiMn_energy_total(s1,t2)
+    -4500       e_saf_def(s1,t2)
+
+pSiMn_SiO2(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       SiMn_material_balance(t3)
+       -1       pSiMn_split_def(s1,t3)
+       -0.4     quartz_balance(s1,t3)
+    -4500       SiMn_energy_total(s1,t3)
+    -4500       e_saf_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- uSinterSiMn_Si  sinter to SiMn via Si route (t)
+
+uSinterSiMn_Si(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t1)
+       -1       uSinterSiMn_split_def(s1,t1)
+
+uSinterSiMn_Si(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t2)
+       -1       uSinterSiMn_split_def(s1,t2)
+
+uSinterSiMn_Si(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t3)
+       -1       uSinterSiMn_split_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- uSinterSiMn_SiO2  sinter to SiMn via SiO2 route (t)
+
+uSinterSiMn_SiO2(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t1)
+       -1       uSinterSiMn_split_def(s1,t1)
+
+uSinterSiMn_SiO2(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t2)
+       -1       uSinterSiMn_split_def(s1,t2)
+
+uSinterSiMn_SiO2(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1.8     SiMn_material_balance(t3)
+       -1       uSinterSiMn_split_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- bQuartz  quartz bought for SiMn via SiO2 (t)
+
+bQuartz(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       quartz_balance(s1,t1)
+      -50       obj
+
+bQuartz(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       quartz_balance(s1,t2)
+      -50       obj
+
+bQuartz(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       quartz_balance(s1,t3)
+      -50       obj
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- bSi  silicon bought for SiMn via Si (t)
+
+bSi(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       si_balance(s1,t1)
+     -250       obj
+
+bSi(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       si_balance(s1,t2)
+     -250       obj
+
+bSi(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       si_balance(s1,t3)
+     -250       obj
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- eSAF  SAF electricity (kWh)
+
+eSAF(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       e_saf_def(s1,t1)
+       -0.01    obj
+
+eSAF(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       e_saf_def(s1,t2)
+       -0.01    obj
+
+eSAF(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       e_saf_def(s1,t3)
+       -0.01    obj
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- eSint  sinter electricity (kWh)
+
+eSint(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_power(t1)
+       -0.01    obj
+
+eSint(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_power(t2)
+       -0.01    obj
+
+eSint(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_power(t3)
+       -0.01    obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- LT_SAF_FeMn  LT heat in SAF for FeMn (kWh)
+
+LT_SAF_FeMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t1)
+        1       lt_saf_femn_def(s1,t1)
+
+LT_SAF_FeMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t2)
+        1       lt_saf_femn_def(s1,t2)
+
+LT_SAF_FeMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t3)
+        1       lt_saf_femn_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- HT_SAF_FeMn  HT heat in SAF for FeMn (kWh)
+
+HT_SAF_FeMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t1)
+       -1       FeMn_ht_min(s1,t1)
+        1       ht_saf_femn_def(s1,t1)
+
+HT_SAF_FeMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t2)
+       -1       FeMn_ht_min(s1,t2)
+        1       ht_saf_femn_def(s1,t2)
+
+HT_SAF_FeMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       FeMn_energy_total(s1,t3)
+       -1       FeMn_ht_min(s1,t3)
+        1       ht_saf_femn_def(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- LT_SAF_SiMn  LT heat in SAF for SiMn (kWh)
+
+LT_SAF_SiMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       lt_saf_simn_def(s1,t1)
+        1       SiMn_energy_total(s1,t1)
+
+LT_SAF_SiMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       lt_saf_simn_def(s1,t2)
+        1       SiMn_energy_total(s1,t2)
+
+LT_SAF_SiMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       lt_saf_simn_def(s1,t3)
+        1       SiMn_energy_total(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- HT_SAF_SiMn  HT heat in SAF for SiMn (kWh)
+
+HT_SAF_SiMn(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ht_saf_simn_def(s1,t1)
+        1       SiMn_energy_total(s1,t1)
+       -1       SiMn_ht_min(s1,t1)
+
+HT_SAF_SiMn(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ht_saf_simn_def(s1,t2)
+        1       SiMn_energy_total(s1,t2)
+       -1       SiMn_ht_min(s1,t2)
+
+HT_SAF_SiMn(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ht_saf_simn_def(s1,t3)
+        1       SiMn_energy_total(s1,t3)
+       -1       SiMn_ht_min(s1,t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- LT_sint  LT heat in sinter (kWh)
+
+LT_sint(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t1)
+        1       lt_sint_def(t1)
+
+LT_sint(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t2)
+        1       lt_sint_def(t2)
+
+LT_sint(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t3)
+        1       lt_sint_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- HT_sint  HT heat in sinter (kWh)
+
+HT_sint(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t1)
+       -1       sinter_ht_min(t1)
+        1       ht_sint_def(t1)
+
+HT_sint(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t2)
+       -1       sinter_ht_min(t2)
+        1       ht_sint_def(t2)
+
+HT_sint(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       sinter_energy_total(t3)
+       -1       sinter_ht_min(t3)
+        1       ht_sint_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- uSAF  fuel use in SAF for FeMn (t fuel)
+
+uSAF(s1,t1,oil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+    -1160       lt_saf_femn_def(s1,t1)
+       -1       lt_saf_femn_min(s1,t1,oil)
+       -1.8     offgas_def(s1,t1)
+    -5000       obj
+
+uSAF(s1,t1,biooil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+     -500       lt_saf_femn_def(s1,t1)
+       -1       lt_saf_femn_min(s1,t1,biooil)
+       -1.8     offgas_def(s1,t1)
+       -3       co2_bio_pre_def(t1)
+    -4500       obj
+
+uSAF(s1,t1,woodchips)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+    -2500       lt_saf_femn_def(s1,t1)
+       -1       lt_saf_femn_min(s1,t1,woodchips)
+       -1.8     offgas_def(s1,t1)
+       -1.8     co2_bio_pre_def(t1)
+    -1200       obj
+
+REMAINING 87 ENTRIES SKIPPED
+
+---- uSAF_SiMn  fuel use in SAF for SiMn (t fuel)
+
+uSAF_SiMn(s1,t1,oil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+    -1160       lt_saf_simn_def(s1,t1)
+       -1.8     offgas_def(s1,t1)
+    -5000       obj
+
+uSAF_SiMn(s1,t1,biooil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+     -500       lt_saf_simn_def(s1,t1)
+       -1.8     offgas_def(s1,t1)
+       -3       co2_bio_pre_def(t1)
+    -4500       obj
+
+uSAF_SiMn(s1,t1,woodchips)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+    -2500       lt_saf_simn_def(s1,t1)
+       -1.8     offgas_def(s1,t1)
+       -1.8     co2_bio_pre_def(t1)
+    -1200       obj
+
+REMAINING 87 ENTRIES SKIPPED
+
+---- uSint_LT  LT fuels used in sinter (t fuel)
+
+uSint_LT(t1,oil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       lt_sint_min_lt(oil,t1)
+    -5000       obj
+
+uSint_LT(t1,biooil)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       lt_sint_min_lt(biooil,t1)
+       -3       co2_bio_pre_def(t1)
+    -4500       obj
+
+uSint_LT(t1,woodchips)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       lt_sint_min_lt(woodchips,t1)
+       -1.8     co2_bio_pre_def(t1)
+    -1200       obj
+
+REMAINING 12 ENTRIES SKIPPED
+
+---- uSint_HT  HT fuels used in sinter (t fuel)
+
+uSint_HT(t1,coke)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+    -8000       ht_sint_def(t1)
+       -1       ht_sint_min_ht(coke,t1)
+     -300       obj
+
+uSint_HT(t1,COgas)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       ht_sint_min_ht(COgas,t1)
+    -5000       obj
+
+uSint_HT(t1,hydrogen)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       ht_sint_min_ht(hydrogen,t1)
+    -2000       obj
+
+REMAINING 27 ENTRIES SKIPPED
+
+---- pSlag  slag (t)
+
+pSlag(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_def(s1,t1)
+       -1       slag_tot_def(t1)
+
+pSlag(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_def(s1,t2)
+       -1       slag_tot_def(t2)
+
+pSlag(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_def(s1,t3)
+       -1       slag_tot_def(t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- pSlagTot  total slag (t)
+
+pSlagTot(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_tot_def(t1)
+        0.6     SiMn_material_balance(t1)
+
+pSlagTot(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_tot_def(t2)
+        0.6     SiMn_material_balance(t2)
+
+pSlagTot(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       slag_tot_def(t3)
+        0.6     SiMn_material_balance(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- gOffgas  off-gas from SAF (t)
+
+gOffgas(s1,t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       offgas_def(s1,t1)
+       -1.5     CO2_offgas_def(t1)
+       -1.5     co2_offgas_pot_def(t1)
+
+gOffgas(s1,t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       offgas_def(s1,t2)
+       -1.5     CO2_offgas_def(t2)
+       -1.5     co2_offgas_pot_def(t2)
+
+gOffgas(s1,t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       offgas_def(s1,t3)
+       -1.5     CO2_offgas_def(t3)
+       -1.5     co2_offgas_pot_def(t3)
+
+REMAINING 7 ENTRIES SKIPPED
+
+---- uTotalCoke_SAF  total coke in SAF (t fuel)
+
+uTotalCoke_SAF(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       coke_total_def(t1)
+
+uTotalCoke_SAF(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       coke_total_def(t2)
+
+uTotalCoke_SAF(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       coke_total_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_coke_sint  CO2 from sinter (t)
+
+CO2_coke_sint(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_coke_sint_def(t1)
+       -1       co2_total_net_def(t1)
+
+CO2_coke_sint(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_coke_sint_def(t2)
+       -1       co2_total_net_def(t2)
+
+CO2_coke_sint(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_coke_sint_def(t3)
+       -1       co2_total_net_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_offgas  CO2 from off-gas flaring (t)
+
+CO2_offgas(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_offgas_def(t1)
+
+CO2_offgas(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_offgas_def(t2)
+
+CO2_offgas(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       CO2_offgas_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- qBiocarbon  biocarbon capacity additions in period t (t fuel per period)
+
+qBiocarbon(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_biocarbon_only_y(t1)
+
+qBiocarbon(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_biocarbon_only_y(t2)
+
+qBiocarbon(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_biocarbon_only_y(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- biocap  available biocarbon capacity in period t (t fuel per period)
+
+biocap(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       biocap_def(t1)
+       -1       biocarbon_use_limit(t1)
+
+biocap(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       biocap_def(t2)
+       -1       biocarbon_use_limit(t2)
+
+biocap(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       biocap_def(t3)
+       -1       biocarbon_use_limit(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- qCCS  CCS capacity additions in period t (tCO2 per period)
+
+qCCS(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_only_y(t1)
+
+qCCS(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_only_y(t2)
+
+qCCS(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       invest_only_y(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- fCCS  CO2 stream sent to CCS (t per period)
+
+fCCS(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_stream_upper(t1)
+        1       ccs_capacity_upper(t1)
+       -0.9     ccs_capture_eff(t1)
+
+fCCS(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_stream_upper(t2)
+        1       ccs_capacity_upper(t2)
+       -0.9     ccs_capture_eff(t2)
+
+fCCS(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_stream_upper(t3)
+        1       ccs_capacity_upper(t3)
+       -0.9     ccs_capture_eff(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_captured  CO2 captured (t per period)
+
+CO2_captured(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_capture_eff(t1)
+        1       co2_atm_offgas_def(t1)
+      -50       obj
+
+CO2_captured(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_capture_eff(t2)
+        1       co2_atm_offgas_def(t2)
+      -50       obj
+
+CO2_captured(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_capture_eff(t3)
+        1       co2_atm_offgas_def(t3)
+      -50       obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_offgas_pot  CO2 with potential to be emitted from off-gas before CCS (t per period)
+
+CO2_offgas_pot(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_offgas_pot_def(t1)
+       -1       ccs_stream_upper(t1)
+       -1       co2_atm_offgas_def(t1)
+
+CO2_offgas_pot(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_offgas_pot_def(t2)
+       -1       ccs_stream_upper(t2)
+       -1       co2_atm_offgas_def(t2)
+
+CO2_offgas_pot(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_offgas_pot_def(t3)
+       -1       ccs_stream_upper(t3)
+       -1       co2_atm_offgas_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_atm_offgas  Residual off-gas CO2 to atmosphere after CCS (t per period)
+
+CO2_atm_offgas(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_atm_offgas_def(t1)
+       -1       co2_total_net_def(t1)
+
+CO2_atm_offgas(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_atm_offgas_def(t2)
+       -1       co2_total_net_def(t2)
+
+CO2_atm_offgas(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_atm_offgas_def(t3)
+       -1       co2_total_net_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- eCCS_el  Electricity use for CCS (kWh)
+
+eCCS_el(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_el_def(t1)
+       -0.01    obj
+
+eCCS_el(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_el_def(t2)
+       -0.01    obj
+
+eCCS_el(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_el_def(t3)
+       -0.01    obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- qCCS_th  Steam/thermal use for CCS (kWh_th)
+
+qCCS_th(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_th_def(t1)
+
+qCCS_th(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_th_def(t2)
+
+qCCS_th(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       ccs_th_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_total_net  Net CO2 to atmosphere (t) (sinter process + residual off-gas)
+
+CO2_total_net(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_total_net_def(t1)
+       -1       co2_ets_def(t1)
+
+CO2_total_net(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_total_net_def(t2)
+       -1       co2_ets_def(t2)
+
+CO2_total_net(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_total_net_def(t3)
+       -1       co2_ets_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_bio_pre  Biogenic CO2 that would be emitted without CCS (t)
+
+CO2_bio_pre(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_bio_pre_def(t1)
+        1       co2_ets_def(t1)
+
+CO2_bio_pre(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_bio_pre_def(t2)
+        1       co2_ets_def(t2)
+
+CO2_bio_pre(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_bio_pre_def(t3)
+        1       co2_ets_def(t3)
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- CO2_ets  ETS-accounted net CO2 (can be negative)
+
+CO2_ets(t1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_ets_def(t1)
+     -100       obj
+
+CO2_ets(t2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_ets_def(t2)
+     -100       obj
+
+CO2_ets(t3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       co2_ets_def(t3)
+     -100       obj
+
+REMAINING 2 ENTRIES SKIPPED
+
+---- TotalCost  objective (€)
+
+TotalCost
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       obj
+
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 4
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+Range Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 619
+
+
+RANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)
+
+RHS       [min, max] : [ 1.000E+00, 1.200E+05] - Zero values observed as well
+Bound     [min, max] : [        NA,        NA] - Zero values observed as well
+Matrix    [min, max] : [ 1.000E-02, 8.000E+03]
+
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 5
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+Model Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 619
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS          51     SINGLE EQUATIONS          449
+BLOCKS OF VARIABLES          44     SINGLE VARIABLES          506
+NON ZERO ELEMENTS         1,588
+
+
+GENERATION TIME      =        0.000 SECONDS      4 MB  39.1.1 dbf03b78 WEX-WEI
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 6
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+Solution Report     SOLVE FeMn_SiMn_Opt Using LP From line 619
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   FeMn_SiMn_Opt       OBJECTIVE  TotalCost
+     TYPE    LP                  DIRECTION  MINIMIZE
+     SOLVER  CPLEX               FROM LINE  619
+
+**** SOLVER STATUS     1 Normal Completion
+**** MODEL STATUS      1 Optimal
+**** OBJECTIVE VALUE             3987.6857
+
+ RESOURCE USAGE, LIMIT          0.015 10000000000.000
+ ITERATION COUNT, LIMIT         4    2147483647
+--- GAMS/Cplex licensed for continuous and discrete problems.
+--- GMO setup time: 0.00s
+--- Space for names approximately 0.03 Mb
+--- Use option 'names no' to turn use of names off
+--- GMO memory 0.61 Mb (peak 0.61 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.0.0 link memory 0.01 Mb (peak 0.07 Mb)
+--- Starting Cplex
+
+
+--- LP status (1): optimal.
+--- Cplex Time: 0.00sec (det. 0.65 ticks)
+
+
+Optimal solution found
+Objective:         3987.685714
+
+
+---- EQU dem_FeMn  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1         1.0000         1.0000         1.0000       799.7550      
+t2         1.0000         1.0000         1.0000       799.7550      
+t3         1.0000         1.0000         1.0000       799.7550      
+t4         1.0000         1.0000         1.0000       799.7550      
+t5         1.0000         1.0000         1.0000       788.6657      
+
+---- EQU dem_SiMn  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+t5          .              .              .              .          
+
+---- EQU ore_to_sinter  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+---- EQU sinter_energy_total  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .             0.0375      
+t2          .              .              .             0.0375      
+t3          .              .              .             0.0375      
+t4          .              .              .             0.0375      
+t5          .              .              .             0.0375      
+
+---- EQU sinter_ht_min  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF        -1800.0000          .              .          
+t2        -INF        -1800.0000          .              .          
+t3        -INF        -1800.0000          .              .          
+t4        -INF        -1800.0000          .              .          
+t5        -INF        -1800.0000          .              .          
+
+---- EQU sinter_power  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .             0.0100      
+t2          .              .              .             0.0100      
+t3          .              .              .             0.0100      
+t4          .              .              .             0.0100      
+t5          .              .              .             0.0100      
+
+---- EQU sinter_use_balance  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .          -321.6000      
+t2          .              .              .          -321.6000      
+t3          .              .              .          -321.6000      
+t4          .              .              .          -321.6000      
+t5          .              .              .          -321.6000      
+
+---- EQU lt_sint_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .            -0.0375      
+t2          .              .              .            -0.0375      
+t3          .              .              .            -0.0375      
+t4          .              .              .            -0.0375      
+t5          .              .              .            -0.0375      
+
+---- EQU lt_sint_min_lt  
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+oil      .t1        -INF             .              .              .          
+oil      .t2        -INF             .              .              .          
+oil      .t3        -INF             .              .              .          
+oil      .t4        -INF             .              .              .          
+oil      .t5        -INF             .              .              .          
+biooil   .t1        -INF             .              .              .          
+biooil   .t2        -INF             .              .              .          
+biooil   .t3        -INF             .              .              .          
+biooil   .t4        -INF             .              .              .          
+biooil   .t5        -INF             .              .              .          
+woodchips.t1        -INF             .              .              .          
+woodchips.t2        -INF             .              .              .          
+woodchips.t3        -INF             .              .              .          
+woodchips.t4        -INF             .              .              .          
+woodchips.t5        -INF             .              .              .          
+
+---- EQU ht_sint_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .            -0.0375      
+t2          .              .              .            -0.0375      
+t3          .              .              .            -0.0375      
+t4          .              .              .            -0.0375      
+t5          .              .              .            -0.0375      
+
+---- EQU ht_sint_min_ht  
+
+                   LOWER          LEVEL          UPPER         MARGINAL
+
+coke    .t1        -INF           -0.2250          .              .          
+coke    .t2        -INF           -0.2250          .              .          
+coke    .t3        -INF           -0.2250          .              .          
+coke    .t4        -INF           -0.2250          .              .          
+coke    .t5        -INF           -0.2250          .              .          
+COgas   .t1        -INF             .              .              .          
+COgas   .t2        -INF             .              .              .          
+COgas   .t3        -INF             .              .              .          
+COgas   .t4        -INF             .              .              .          
+COgas   .t5        -INF             .              .              .          
+hydrogen.t1        -INF             .              .              .          
+hydrogen.t2        -INF             .              .              .          
+hydrogen.t3        -INF             .              .              .          
+hydrogen.t4        -INF             .              .              .          
+hydrogen.t5        -INF             .              .              .          
+natgas  .t1        -INF             .              .              .          
+natgas  .t2        -INF             .              .              .          
+natgas  .t3        -INF             .              .              .          
+natgas  .t4        -INF             .              .              .          
+natgas  .t5        -INF             .              .              .          
+biogas  .t1        -INF             .              .              .          
+biogas  .t2        -INF             .              .              .          
+biogas  .t3        -INF             .              .              .          
+biogas  .t4        -INF             .              .              .          
+biogas  .t5        -INF             .              .              .          
+biochar .t1        -INF             .              .              .          
+biochar .t2        -INF             .              .              .          
+biochar .t3        -INF             .              .              .          
+biochar .t4        -INF             .              .              .          
+biochar .t5        -INF             .              .              .          
+
+---- EQU FeMn_sinter_link  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .           321.6000      
+s1.t2          .              .              .           321.6000      
+s1.t3          .              .              .           321.6000      
+s1.t4          .              .              .           321.6000      
+s1.t5          .              .              .           321.6000      
+s2.t1          .              .              .           321.6000      
+s2.t2          .              .              .           321.6000      
+s2.t3          .              .              .           321.6000      
+s2.t4          .              .              .           321.6000      
+s2.t5          .              .              .           321.6000      
+
+---- EQU FeMn_energy_total  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .             0.0713      
+s1.t2          .              .              .             0.0713      
+s1.t3          .              .              .             0.0713      
+s1.t4          .              .              .             0.0713      
+s1.t5          .              .              .             0.0671      
+s2.t1          .              .              .             0.0712      
+s2.t2          .              .              .             0.0712      
+s2.t3          .              .              .             0.0712      
+s2.t4          .              .              .             0.0712      
+s2.t5          .              .              .             0.0671      
+
+---- EQU FeMn_ht_min  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1        -INF        -2699.8000          .              .          
+s1.t2        -INF        -2699.8000          .              .          
+s1.t3        -INF        -2699.8000          .              .          
+s1.t4        -INF        -2699.8000          .              .          
+s1.t5        -INF        -2699.8000          .              .          
+s2.t1        -INF             .              .              .          
+s2.t2        -INF             .              .              .          
+s2.t3        -INF             .              .              .          
+s2.t4        -INF             .              .              .          
+s2.t5        -INF             .              .              .          
+
+---- EQU lt_saf_femn_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .            -0.0713      
+s1.t2          .              .              .            -0.0713      
+s1.t3          .              .              .            -0.0713      
+s1.t4          .              .              .            -0.0713      
+s1.t5          .              .              .            -0.0671      
+s2.t1          .              .              .            -0.0712      
+s2.t2          .              .              .            -0.0712      
+s2.t3          .              .              .            -0.0712      
+s2.t4          .              .              .            -0.0712      
+s2.t5          .              .              .            -0.0671      
+
+---- EQU lt_saf_femn_min  
+
+                       LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1.oil              -INF             .              .              .          
+s1.t1.biooil           -INF             .              .              .          
+s1.t1.woodchips        -INF             .              .              .          
+s1.t2.oil              -INF             .              .              .          
+s1.t2.biooil           -INF             .              .              .          
+s1.t2.woodchips        -INF             .              .              .          
+s1.t3.oil              -INF             .              .              .          
+s1.t3.biooil           -INF             .              .              .          
+s1.t3.woodchips        -INF             .              .              .          
+s1.t4.oil              -INF             .              .              .          
+s1.t4.biooil           -INF             .              .              .          
+s1.t4.woodchips        -INF             .              .              .          
+s1.t5.oil              -INF             .              .              .          
+s1.t5.biooil           -INF             .              .              .          
+s1.t5.woodchips        -INF             .              .              .          
+s2.t1.oil              -INF             .              .              .          
+s2.t1.biooil           -INF             .              .              .          
+s2.t1.woodchips        -INF             .              .              .          
+s2.t2.oil              -INF             .              .              .          
+s2.t2.biooil           -INF             .              .              .          
+s2.t2.woodchips        -INF             .              .              .          
+s2.t3.oil              -INF             .              .              .          
+s2.t3.biooil           -INF             .              .              .          
+s2.t3.woodchips        -INF             .              .              .          
+s2.t4.oil              -INF             .              .              .          
+s2.t4.biooil           -INF             .              .              .          
+s2.t4.woodchips        -INF             .              .              .          
+s2.t5.oil              -INF             .              .              .          
+s2.t5.biooil           -INF             .              .              .          
+s2.t5.woodchips        -INF             .              .              .          
+
+---- EQU ht_saf_femn_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .            -0.0713      
+s1.t2          .              .              .            -0.0713      
+s1.t3          .              .              .            -0.0713      
+s1.t4          .              .              .            -0.0713      
+s1.t5          .              .              .            -0.0671      
+s2.t1          .              .              .            -0.0712      
+s2.t2          .              .              .            -0.0712      
+s2.t3          .              .              .            -0.0712      
+s2.t4          .              .              .            -0.0712      
+s2.t5          .              .              .            -0.0671      
+
+---- EQU ht_saf_femn_min  
+
+                      LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1.coke            -INF           -0.3375          .              .          
+s1.t1.COgas           -INF             .              .              .          
+s1.t1.hydrogen        -INF             .              .              .          
+s1.t1.natgas          -INF             .              .              .          
+s1.t1.biogas          -INF             .              .              .          
+s1.t1.biochar         -INF             .              .              .          
+s1.t2.coke            -INF           -0.3375          .              .          
+s1.t2.COgas           -INF             .              .              .          
+s1.t2.hydrogen        -INF             .              .              .          
+s1.t2.natgas          -INF             .              .              .          
+s1.t2.biogas          -INF             .              .              .          
+s1.t2.biochar         -INF             .              .              .          
+s1.t3.coke            -INF           -0.3375          .              .          
+s1.t3.COgas           -INF             .              .              .          
+s1.t3.hydrogen        -INF             .              .              .          
+s1.t3.natgas          -INF             .              .              .          
+s1.t3.biogas          -INF             .              .              .          
+s1.t3.biochar         -INF             .              .              .          
+s1.t4.coke            -INF           -0.3375          .              .          
+s1.t4.COgas           -INF             .              .              .          
+s1.t4.hydrogen        -INF             .              .              .          
+s1.t4.natgas          -INF             .              .              .          
+s1.t4.biogas          -INF             .              .              .          
+s1.t4.biochar         -INF             .              .              .          
+s1.t5.coke            -INF             .              .              .          
+s1.t5.COgas           -INF             .              .              .          
+s1.t5.hydrogen        -INF             .              .              .          
+s1.t5.natgas          -INF             .              .              .          
+s1.t5.biogas          -INF             .              .              .          
+s1.t5.biochar         -INF           -0.3857          .              .          
+s2.t1.coke            -INF             .              .              .          
+s2.t1.COgas           -INF             .              .              .          
+s2.t1.hydrogen        -INF             .              .              .          
+s2.t1.natgas          -INF             .              .              .          
+s2.t1.biogas          -INF             .              .              .          
+s2.t1.biochar         -INF             .              .              .          
+s2.t2.coke            -INF             .              .              .          
+s2.t2.COgas           -INF             .              .              .          
+s2.t2.hydrogen        -INF             .              .              .          
+s2.t2.natgas          -INF             .              .              .          
+s2.t2.biogas          -INF             .              .              .          
+s2.t2.biochar         -INF             .              .              .          
+s2.t3.coke            -INF             .              .              .          
+s2.t3.COgas           -INF             .              .              .          
+s2.t3.hydrogen        -INF             .              .              .          
+s2.t3.natgas          -INF             .              .              .          
+s2.t3.biogas          -INF             .              .              .          
+s2.t3.biochar         -INF             .              .              .          
+s2.t4.coke            -INF             .              .              .          
+s2.t4.COgas           -INF             .              .              .          
+s2.t4.hydrogen        -INF             .              .              .          
+s2.t4.natgas          -INF             .              .              .          
+s2.t4.biogas          -INF             .              .              .          
+s2.t4.biochar         -INF             .              .              .          
+s2.t5.coke            -INF             .              .              .          
+s2.t5.COgas           -INF             .              .              .          
+s2.t5.hydrogen        -INF             .              .              .          
+s2.t5.natgas          -INF             .              .              .          
+s2.t5.biogas          -INF             .              .              .          
+s2.t5.biochar         -INF             .              .              .          
+
+---- EQU slag_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .             EPS         
+s1.t2          .              .              .             EPS         
+s1.t3          .              .              .             EPS         
+s1.t4          .              .              .             EPS         
+s1.t5          .              .              .             EPS         
+s2.t1          .              .              .             EPS         
+s2.t2          .              .              .             EPS         
+s2.t3          .              .              .             EPS         
+s2.t4          .              .              .             EPS         
+s2.t5          .              .              .             EPS         
+
+---- EQU slag_tot_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF           -0.5400          .              .          
+t2        -INF           -0.5400          .              .          
+t3        -INF           -0.5400          .              .          
+t4        -INF           -0.5400          .              .          
+t5        -INF           -0.5400          .              .          
+
+---- EQU SiMn_material_balance  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+t5          .              .              .              .          
+
+---- EQU pSiMn_split_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .              .          
+s1.t2          .              .              .              .          
+s1.t3          .              .              .              .          
+s1.t4          .              .              .              .          
+s1.t5          .              .              .              .          
+s2.t1          .              .              .              .          
+s2.t2          .              .              .              .          
+s2.t3          .              .              .              .          
+s2.t4          .              .              .              .          
+s2.t5          .              .              .              .          
+
+---- EQU uSinterSiMn_split_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .              .          
+s1.t2          .              .              .              .          
+s1.t3          .              .              .              .          
+s1.t4          .              .              .              .          
+s1.t5          .              .              .              .          
+s2.t1          .              .              .              .          
+s2.t2          .              .              .              .          
+s2.t3          .              .              .              .          
+s2.t4          .              .              .              .          
+s2.t5          .              .              .              .          
+
+---- EQU quartz_balance  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .            50.0000      
+s1.t2          .              .              .            50.0000      
+s1.t3          .              .              .            50.0000      
+s1.t4          .              .              .            50.0000      
+s1.t5          .              .              .            50.0000      
+s2.t1          .              .              .            50.0000      
+s2.t2          .              .              .            50.0000      
+s2.t3          .              .              .            50.0000      
+s2.t4          .              .              .            50.0000      
+s2.t5          .              .              .            50.0000      
+
+---- EQU si_balance  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .           250.0000      
+s1.t2          .              .              .           250.0000      
+s1.t3          .              .              .           250.0000      
+s1.t4          .              .              .           250.0000      
+s1.t5          .              .              .           250.0000      
+s2.t1          .              .              .           250.0000      
+s2.t2          .              .              .           250.0000      
+s2.t3          .              .              .           250.0000      
+s2.t4          .              .              .           250.0000      
+s2.t5          .              .              .           250.0000      
+
+---- EQU lt_saf_simn_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .              .          
+s1.t2          .              .              .              .          
+s1.t3          .              .              .              .          
+s1.t4          .              .              .              .          
+s1.t5          .              .              .              .          
+s2.t1          .              .              .              .          
+s2.t2          .              .              .              .          
+s2.t3          .              .              .              .          
+s2.t4          .              .              .              .          
+s2.t5          .              .              .              .          
+
+---- EQU ht_saf_simn_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .              .          
+s1.t2          .              .              .              .          
+s1.t3          .              .              .              .          
+s1.t4          .              .              .              .          
+s1.t5          .              .              .              .          
+s2.t1          .              .              .              .          
+s2.t2          .              .              .              .          
+s2.t3          .              .              .              .          
+s2.t4          .              .              .              .          
+s2.t5          .              .              .              .          
+
+---- EQU SiMn_energy_total  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .              .          
+s1.t2          .              .              .              .          
+s1.t3          .              .              .              .          
+s1.t4          .              .              .              .          
+s1.t5          .              .              .              .          
+s2.t1          .              .              .              .          
+s2.t2          .              .              .              .          
+s2.t3          .              .              .              .          
+s2.t4          .              .              .              .          
+s2.t5          .              .              .              .          
+
+---- EQU SiMn_ht_min  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1        -INF             .              .              .          
+s1.t2        -INF             .              .              .          
+s1.t3        -INF             .              .              .          
+s1.t4        -INF             .              .              .          
+s1.t5        -INF             .              .              .          
+s2.t1        -INF             .              .              .          
+s2.t2        -INF             .              .              .          
+s2.t3        -INF             .              .              .          
+s2.t4        -INF             .              .              .          
+s2.t5        -INF             .              .              .          
+
+---- EQU e_saf_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .             0.0100      
+s1.t2          .              .              .             0.0100      
+s1.t3          .              .              .             0.0100      
+s1.t4          .              .              .             0.0100      
+s1.t5          .              .              .             0.0100      
+s2.t1          .              .              .             0.0100      
+s2.t2          .              .              .             0.0100      
+s2.t3          .              .              .             0.0100      
+s2.t4          .              .              .             0.0100      
+s2.t5          .              .              .             0.0100      
+
+---- EQU offgas_def  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .              .           150.0000      
+s1.t2          .              .              .           150.0000      
+s1.t3          .              .              .           150.0000      
+s1.t4          .              .              .           150.0000      
+s1.t5          .              .              .           150.0000      
+s2.t1          .              .              .           150.0000      
+s2.t2          .              .              .           150.0000      
+s2.t3          .              .              .           150.0000      
+s2.t4          .              .              .           150.0000      
+s2.t5          .              .              .           150.0000      
+
+---- EQU CO2_coke_sint_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+---- EQU CO2_offgas_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .             EPS         
+t2          .              .              .             EPS         
+t3          .              .              .             EPS         
+t4          .              .              .             EPS         
+t5          .              .              .             EPS         
+
+---- EQU coke_total_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .             EPS         
+t2          .              .              .             EPS         
+t3          .              .              .             EPS         
+t4          .              .              .             EPS         
+t5          .              .              .             EPS         
+
+---- EQU capacity_saf  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1        -INF            1.0000    120000.0000          .          
+s1.t2        -INF            1.0000    120000.0000          .          
+s1.t3        -INF            1.0000    120000.0000          .          
+s1.t4        -INF            1.0000    120000.0000          .          
+s1.t5        -INF            1.0000    120000.0000          .          
+s2.t1        -INF             .        120000.0000          .          
+s2.t2        -INF             .        120000.0000          .          
+s2.t3        -INF             .        120000.0000          .          
+s2.t4        -INF             .        120000.0000          .          
+s2.t5        -INF             .        120000.0000          .          
+
+---- EQU capacity_sinter  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF            1.8000    120000.0000          .          
+t2        -INF            1.8000    120000.0000          .          
+t3        -INF            1.8000    120000.0000          .          
+t4        -INF            1.8000    120000.0000          .          
+t5        -INF            1.8000    120000.0000          .          
+
+---- EQU biocap_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .          -128.7500      
+t2          .              .              .          -128.7500      
+t3          .              .              .          -128.7500      
+t4          .              .              .          -128.7500      
+t5          .              .              .          -100.0000      
+
+---- EQU biocarbon_use_limit  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF             .              .          -128.7500      
+t2        -INF             .              .          -128.7500      
+t3        -INF             .              .          -128.7500      
+t4        -INF             .              .          -128.7500      
+t5        -INF             .              .          -100.0000      
+
+---- EQU co2_offgas_pot_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+---- EQU ccs_stream_upper  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF           -0.9113          .              .          
+t2        -INF           -0.9113          .              .          
+t3        -INF           -0.9113          .              .          
+t4        -INF           -0.9113          .              .          
+t5        -INF           -1.0414          .              .          
+
+---- EQU ccs_capacity_upper  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF             .              .           -45.0000      
+t2        -INF             .              .           -45.0000      
+t3        -INF             .              .           -45.0000      
+t4        -INF             .              .           -45.0000      
+t5        -INF             .              .          -100.0000      
+
+---- EQU ccs_capture_eff  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1        -INF             .              .           -50.0000      
+t2        -INF             .              .           -50.0000      
+t3        -INF             .              .           -50.0000      
+t4        -INF             .              .           -50.0000      
+t5        -INF             .              .          -111.1111      
+
+---- EQU co2_atm_offgas_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+---- EQU co2_total_net_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+---- EQU ccs_el_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+t5          .              .              .              .          
+
+---- EQU ccs_th_def  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+t5          .              .              .              .          
+
+---- EQU invest_only_y  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+
+---- EQU invest_biocarbon_only_y  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .              .          
+t2          .              .              .              .          
+t3          .              .              .              .          
+t4          .              .              .              .          
+
+---- EQU co2_bio_pre_def  Biogenic CO2 pre-capture
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .          -100.0000      
+t2          .              .              .          -100.0000      
+t3          .              .              .          -100.0000      
+t4          .              .              .          -100.0000      
+t5          .              .              .          -100.0000      
+
+---- EQU co2_ets_def  ETS-accounted emissions
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .              .           100.0000      
+t2          .              .              .           100.0000      
+t3          .              .              .           100.0000      
+t4          .              .              .           100.0000      
+t5          .              .              .           100.0000      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU obj                 .              .              .             1.0000      
+
+---- VAR pFeMn  FeMn production (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .             1.0000        +INF             .          
+s1.t2          .             1.0000        +INF             .          
+s1.t3          .             1.0000        +INF             .          
+s1.t4          .             1.0000        +INF             .          
+s1.t5          .             1.0000        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR pSiMn  SiMn total production (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF            EPS         
+s1.t2          .              .            +INF            EPS         
+s1.t3          .              .            +INF            EPS         
+s1.t4          .              .            +INF            EPS         
+s1.t5          .              .            +INF            EPS         
+s2.t1          .              .            +INF            EPS         
+s2.t2          .              .            +INF            EPS         
+s2.t3          .              .            +INF            EPS         
+s2.t4          .              .            +INF            EPS         
+s2.t5          .              .            +INF            EPS         
+
+---- VAR pSinter  sinter production (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             1.8000        +INF             .          
+t2          .             1.8000        +INF             .          
+t3          .             1.8000        +INF             .          
+t4          .             1.8000        +INF             .          
+t5          .             1.8000        +INF             .          
+
+---- VAR bSinter  sinter bought (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF          178.4000      
+t2          .              .            +INF          178.4000      
+t3          .              .            +INF          178.4000      
+t4          .              .            +INF          178.4000      
+t5          .              .            +INF          178.4000      
+
+---- VAR uOre  ore use (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             1.8000        +INF             .          
+t2          .             1.8000        +INF             .          
+t3          .             1.8000        +INF             .          
+t4          .             1.8000        +INF             .          
+t5          .             1.8000        +INF             .          
+
+---- VAR uSinterFeMn  sinter used to produce FeMn (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .             1.8000        +INF             .          
+s1.t2          .             1.8000        +INF             .          
+s1.t3          .             1.8000        +INF             .          
+s1.t4          .             1.8000        +INF             .          
+s1.t5          .             1.8000        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR uSinterSiMn  sinter used to produce SiMn (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF          321.6000      
+s1.t2          .              .            +INF          321.6000      
+s1.t3          .              .            +INF          321.6000      
+s1.t4          .              .            +INF          321.6000      
+s1.t5          .              .            +INF          321.6000      
+s2.t1          .              .            +INF          321.6000      
+s2.t2          .              .            +INF          321.6000      
+s2.t3          .              .            +INF          321.6000      
+s2.t4          .              .            +INF          321.6000      
+s2.t5          .              .            +INF          321.6000      
+
+---- VAR pSiMn_Si  SiMn via Si route (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF          125.0000      
+s1.t2          .              .            +INF          125.0000      
+s1.t3          .              .            +INF          125.0000      
+s1.t4          .              .            +INF          125.0000      
+s1.t5          .              .            +INF          125.0000      
+s2.t1          .              .            +INF          125.0000      
+s2.t2          .              .            +INF          125.0000      
+s2.t3          .              .            +INF          125.0000      
+s2.t4          .              .            +INF          125.0000      
+s2.t5          .              .            +INF          125.0000      
+
+---- VAR pSiMn_SiO2  SiMn via SiO2 route (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF           65.0000      
+s1.t2          .              .            +INF           65.0000      
+s1.t3          .              .            +INF           65.0000      
+s1.t4          .              .            +INF           65.0000      
+s1.t5          .              .            +INF           65.0000      
+s2.t1          .              .            +INF           65.0000      
+s2.t2          .              .            +INF           65.0000      
+s2.t3          .              .            +INF           65.0000      
+s2.t4          .              .            +INF           65.0000      
+s2.t5          .              .            +INF           65.0000      
+
+---- VAR uSinterSiMn_Si  sinter to SiMn via Si route (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF            EPS         
+s1.t2          .              .            +INF            EPS         
+s1.t3          .              .            +INF            EPS         
+s1.t4          .              .            +INF            EPS         
+s1.t5          .              .            +INF            EPS         
+s2.t1          .              .            +INF            EPS         
+s2.t2          .              .            +INF            EPS         
+s2.t3          .              .            +INF            EPS         
+s2.t4          .              .            +INF            EPS         
+s2.t5          .              .            +INF            EPS         
+
+---- VAR uSinterSiMn_SiO2  sinter to SiMn via SiO2 route (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF            EPS         
+s1.t2          .              .            +INF            EPS         
+s1.t3          .              .            +INF            EPS         
+s1.t4          .              .            +INF            EPS         
+s1.t5          .              .            +INF            EPS         
+s2.t1          .              .            +INF            EPS         
+s2.t2          .              .            +INF            EPS         
+s2.t3          .              .            +INF            EPS         
+s2.t4          .              .            +INF            EPS         
+s2.t5          .              .            +INF            EPS         
+
+---- VAR bQuartz  quartz bought for SiMn via SiO2 (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF             .          
+s1.t2          .              .            +INF             .          
+s1.t3          .              .            +INF             .          
+s1.t4          .              .            +INF             .          
+s1.t5          .              .            +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR bSi  silicon bought for SiMn via Si (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF             .          
+s1.t2          .              .            +INF             .          
+s1.t3          .              .            +INF             .          
+s1.t4          .              .            +INF             .          
+s1.t5          .              .            +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR eSAF  SAF electricity (kWh)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .          2850.0000        +INF             .          
+s1.t2          .          2850.0000        +INF             .          
+s1.t3          .          2850.0000        +INF             .          
+s1.t4          .          2850.0000        +INF             .          
+s1.t5          .          2850.0000        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR eSint  sinter electricity (kWh)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .           162.0000        +INF             .          
+t2          .           162.0000        +INF             .          
+t3          .           162.0000        +INF             .          
+t4          .           162.0000        +INF             .          
+t5          .           162.0000        +INF             .          
+
+---- VAR LT_SAF_FeMn  LT heat in SAF for FeMn (kWh)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF             .          
+s1.t2          .              .            +INF             .          
+s1.t3          .              .            +INF             .          
+s1.t4          .              .            +INF             .          
+s1.t5          .              .            +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR HT_SAF_FeMn  HT heat in SAF for FeMn (kWh)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .          2700.0000        +INF             .          
+s1.t2          .          2700.0000        +INF             .          
+s1.t3          .          2700.0000        +INF             .          
+s1.t4          .          2700.0000        +INF             .          
+s1.t5          .          2700.0000        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR LT_SAF_SiMn  LT heat in SAF for SiMn (kWh)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF            EPS         
+s1.t2          .              .            +INF            EPS         
+s1.t3          .              .            +INF            EPS         
+s1.t4          .              .            +INF            EPS         
+s1.t5          .              .            +INF            EPS         
+s2.t1          .              .            +INF            EPS         
+s2.t2          .              .            +INF            EPS         
+s2.t3          .              .            +INF            EPS         
+s2.t4          .              .            +INF            EPS         
+s2.t5          .              .            +INF            EPS         
+
+---- VAR HT_SAF_SiMn  HT heat in SAF for SiMn (kWh)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .              .            +INF            EPS         
+s1.t2          .              .            +INF            EPS         
+s1.t3          .              .            +INF            EPS         
+s1.t4          .              .            +INF            EPS         
+s1.t5          .              .            +INF            EPS         
+s2.t1          .              .            +INF            EPS         
+s2.t2          .              .            +INF            EPS         
+s2.t3          .              .            +INF            EPS         
+s2.t4          .              .            +INF            EPS         
+s2.t5          .              .            +INF            EPS         
+
+---- VAR LT_sint  LT heat in sinter (kWh)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF             .          
+t2          .              .            +INF             .          
+t3          .              .            +INF             .          
+t4          .              .            +INF             .          
+t5          .              .            +INF             .          
+
+---- VAR HT_sint  HT heat in sinter (kWh)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .          1800.0000        +INF             .          
+t2          .          1800.0000        +INF             .          
+t3          .          1800.0000        +INF             .          
+t4          .          1800.0000        +INF             .          
+t5          .          1800.0000        +INF             .          
+
+---- VAR uSAF  fuel use in SAF for FeMn (t fuel)
+
+                       LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1.oil                .              .            +INF         5187.3500      
+s1.t1.biooil             .              .            +INF         4434.3750      
+s1.t1.woodchips          .              .            +INF         1111.8750      
+s1.t1.coke               .             0.3375        +INF             .          
+s1.t1.COgas              .              .            +INF         5252.9000      
+s1.t1.hydrogen           .              .            +INF         2032.7375      
+s1.t1.natgas             .              .            +INF         1670.9625      
+s1.t1.biogas             .              .            +INF         1327.2500      
+s1.t1.biochar            .              .            +INF             .          
+s1.t2.oil                .              .            +INF         5187.3500      
+s1.t2.biooil             .              .            +INF         4434.3750      
+s1.t2.woodchips          .              .            +INF         1111.8750      
+s1.t2.coke               .             0.3375        +INF             .          
+s1.t2.COgas              .              .            +INF         5252.9000      
+s1.t2.hydrogen           .              .            +INF         2032.7375      
+s1.t2.natgas             .              .            +INF         1670.9625      
+s1.t2.biogas             .              .            +INF         1327.2500      
+s1.t2.biochar            .              .            +INF             .          
+s1.t3.oil                .              .            +INF         5187.3500      
+s1.t3.biooil             .              .            +INF         4434.3750      
+s1.t3.woodchips          .              .            +INF         1111.8750      
+s1.t3.coke               .             0.3375        +INF             .          
+s1.t3.COgas              .              .            +INF         5252.9000      
+s1.t3.hydrogen           .              .            +INF         2032.7375      
+s1.t3.natgas             .              .            +INF         1670.9625      
+s1.t3.biogas             .              .            +INF         1327.2500      
+s1.t3.biochar            .              .            +INF             .          
+s1.t4.oil                .              .            +INF         5187.3500      
+s1.t4.biooil             .              .            +INF         4434.3750      
+s1.t4.woodchips          .              .            +INF         1111.8750      
+s1.t4.coke               .             0.3375        +INF             .          
+s1.t4.COgas              .              .            +INF         5252.9000      
+s1.t4.hydrogen           .              .            +INF         2032.7375      
+s1.t4.natgas             .              .            +INF         1670.9625      
+s1.t4.biogas             .              .            +INF         1327.2500      
+s1.t4.biochar            .              .            +INF             .          
+s1.t5.oil                .              .            +INF         5192.1143      
+s1.t5.biooil             .              .            +INF         4436.4286      
+s1.t5.woodchips          .              .            +INF         1122.1429      
+s1.t5.coke               .              .            +INF           32.8571      
+s1.t5.COgas              .              .            +INF         5253.8857      
+s1.t5.hydrogen           .              .            +INF         2046.4143      
+s1.t5.natgas             .              .            +INF         1676.6714      
+s1.t5.biogas             .              .            +INF         1329.7143      
+s1.t5.biochar            .             0.3857        +INF             .          
+s2.t1.oil                .              .            +INF         5187.3500      
+s2.t1.biooil             .              .            +INF         4434.3750      
+s2.t1.woodchips          .              .            +INF         1111.8750      
+s2.t1.coke               .              .            +INF            EPS         
+s2.t1.COgas              .              .            +INF         5252.9000      
+s2.t1.hydrogen           .              .            +INF         2032.7375      
+s2.t1.natgas             .              .            +INF         1670.9625      
+s2.t1.biogas             .              .            +INF         1327.2500      
+s2.t1.biochar            .              .            +INF      5.684342E-14      
+s2.t2.oil                .              .            +INF         5187.3500      
+s2.t2.biooil             .              .            +INF         4434.3750      
+s2.t2.woodchips          .              .            +INF         1111.8750      
+s2.t2.coke               .              .            +INF            EPS         
+s2.t2.COgas              .              .            +INF         5252.9000      
+s2.t2.hydrogen           .              .            +INF         2032.7375      
+s2.t2.natgas             .              .            +INF         1670.9625      
+s2.t2.biogas             .              .            +INF         1327.2500      
+s2.t2.biochar            .              .            +INF      5.684342E-14      
+s2.t3.oil                .              .            +INF         5187.3500      
+s2.t3.biooil             .              .            +INF         4434.3750      
+s2.t3.woodchips          .              .            +INF         1111.8750      
+s2.t3.coke               .              .            +INF            EPS         
+s2.t3.COgas              .              .            +INF         5252.9000      
+s2.t3.hydrogen           .              .            +INF         2032.7375      
+s2.t3.natgas             .              .            +INF         1670.9625      
+s2.t3.biogas             .              .            +INF         1327.2500      
+s2.t3.biochar            .              .            +INF      5.684342E-14      
+s2.t4.oil                .              .            +INF         5187.3500      
+s2.t4.biooil             .              .            +INF         4434.3750      
+s2.t4.woodchips          .              .            +INF         1111.8750      
+s2.t4.coke               .              .            +INF            EPS         
+s2.t4.COgas              .              .            +INF         5252.9000      
+s2.t4.hydrogen           .              .            +INF         2032.7375      
+s2.t4.natgas             .              .            +INF         1670.9625      
+s2.t4.biogas             .              .            +INF         1327.2500      
+s2.t4.biochar            .              .            +INF      5.684342E-14      
+s2.t5.oil                .              .            +INF         5192.1143      
+s2.t5.biooil             .              .            +INF         4436.4286      
+s2.t5.woodchips          .              .            +INF         1122.1429      
+s2.t5.coke               .              .            +INF           32.8571      
+s2.t5.COgas              .              .            +INF         5253.8857      
+s2.t5.hydrogen           .              .            +INF         2046.4143      
+s2.t5.natgas             .              .            +INF         1676.6714      
+s2.t5.biogas             .              .            +INF         1329.7143      
+s2.t5.biochar            .              .            +INF      1.705303E-13      
+
+---- VAR uSAF_SiMn  fuel use in SAF for SiMn (t fuel)
+
+                       LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1.oil                .              .            +INF         5270.0000      
+s1.t1.biooil             .              .            +INF         4470.0000      
+s1.t1.woodchips          .              .            +INF         1290.0000      
+s1.t1.coke               .              .            +INF          570.0000      
+s1.t1.COgas              .              .            +INF         5270.0000      
+s1.t1.hydrogen           .              .            +INF         2270.0000      
+s1.t1.natgas             .              .            +INF         1770.0000      
+s1.t1.biogas             .              .            +INF         1370.0000      
+s1.t1.biochar            .              .            +INF          498.7500      
+s1.t2.oil                .              .            +INF         5270.0000      
+s1.t2.biooil             .              .            +INF         4470.0000      
+s1.t2.woodchips          .              .            +INF         1290.0000      
+s1.t2.coke               .              .            +INF          570.0000      
+s1.t2.COgas              .              .            +INF         5270.0000      
+s1.t2.hydrogen           .              .            +INF         2270.0000      
+s1.t2.natgas             .              .            +INF         1770.0000      
+s1.t2.biogas             .              .            +INF         1370.0000      
+s1.t2.biochar            .              .            +INF          498.7500      
+s1.t3.oil                .              .            +INF         5270.0000      
+s1.t3.biooil             .              .            +INF         4470.0000      
+s1.t3.woodchips          .              .            +INF         1290.0000      
+s1.t3.coke               .              .            +INF          570.0000      
+s1.t3.COgas              .              .            +INF         5270.0000      
+s1.t3.hydrogen           .              .            +INF         2270.0000      
+s1.t3.natgas             .              .            +INF         1770.0000      
+s1.t3.biogas             .              .            +INF         1370.0000      
+s1.t3.biochar            .              .            +INF          498.7500      
+s1.t4.oil                .              .            +INF         5270.0000      
+s1.t4.biooil             .              .            +INF         4470.0000      
+s1.t4.woodchips          .              .            +INF         1290.0000      
+s1.t4.coke               .              .            +INF          570.0000      
+s1.t4.COgas              .              .            +INF         5270.0000      
+s1.t4.hydrogen           .              .            +INF         2270.0000      
+s1.t4.natgas             .              .            +INF         1770.0000      
+s1.t4.biogas             .              .            +INF         1370.0000      
+s1.t4.biochar            .              .            +INF          498.7500      
+s1.t5.oil                .              .            +INF         5270.0000      
+s1.t5.biooil             .              .            +INF         4470.0000      
+s1.t5.woodchips          .              .            +INF         1290.0000      
+s1.t5.coke               .              .            +INF          570.0000      
+s1.t5.COgas              .              .            +INF         5270.0000      
+s1.t5.hydrogen           .              .            +INF         2270.0000      
+s1.t5.natgas             .              .            +INF         1770.0000      
+s1.t5.biogas             .              .            +INF         1370.0000      
+s1.t5.biochar            .              .            +INF          470.0000      
+s2.t1.oil                .              .            +INF         5270.0000      
+s2.t1.biooil             .              .            +INF         4470.0000      
+s2.t1.woodchips          .              .            +INF         1290.0000      
+s2.t1.coke               .              .            +INF          570.0000      
+s2.t1.COgas              .              .            +INF         5270.0000      
+s2.t1.hydrogen           .              .            +INF         2270.0000      
+s2.t1.natgas             .              .            +INF         1770.0000      
+s2.t1.biogas             .              .            +INF         1370.0000      
+s2.t1.biochar            .              .            +INF          498.7500      
+s2.t2.oil                .              .            +INF         5270.0000      
+s2.t2.biooil             .              .            +INF         4470.0000      
+s2.t2.woodchips          .              .            +INF         1290.0000      
+s2.t2.coke               .              .            +INF          570.0000      
+s2.t2.COgas              .              .            +INF         5270.0000      
+s2.t2.hydrogen           .              .            +INF         2270.0000      
+s2.t2.natgas             .              .            +INF         1770.0000      
+s2.t2.biogas             .              .            +INF         1370.0000      
+s2.t2.biochar            .              .            +INF          498.7500      
+s2.t3.oil                .              .            +INF         5270.0000      
+s2.t3.biooil             .              .            +INF         4470.0000      
+s2.t3.woodchips          .              .            +INF         1290.0000      
+s2.t3.coke               .              .            +INF          570.0000      
+s2.t3.COgas              .              .            +INF         5270.0000      
+s2.t3.hydrogen           .              .            +INF         2270.0000      
+s2.t3.natgas             .              .            +INF         1770.0000      
+s2.t3.biogas             .              .            +INF         1370.0000      
+s2.t3.biochar            .              .            +INF          498.7500      
+s2.t4.oil                .              .            +INF         5270.0000      
+s2.t4.biooil             .              .            +INF         4470.0000      
+s2.t4.woodchips          .              .            +INF         1290.0000      
+s2.t4.coke               .              .            +INF          570.0000      
+s2.t4.COgas              .              .            +INF         5270.0000      
+s2.t4.hydrogen           .              .            +INF         2270.0000      
+s2.t4.natgas             .              .            +INF         1770.0000      
+s2.t4.biogas             .              .            +INF         1370.0000      
+s2.t4.biochar            .              .            +INF          498.7500      
+s2.t5.oil                .              .            +INF         5270.0000      
+s2.t5.biooil             .              .            +INF         4470.0000      
+s2.t5.woodchips          .              .            +INF         1290.0000      
+s2.t5.coke               .              .            +INF          570.0000      
+s2.t5.COgas              .              .            +INF         5270.0000      
+s2.t5.hydrogen           .              .            +INF         2270.0000      
+s2.t5.natgas             .              .            +INF         1770.0000      
+s2.t5.biogas             .              .            +INF         1370.0000      
+s2.t5.biochar            .              .            +INF          470.0000      
+
+---- VAR uSint_LT  LT fuels used in sinter (t fuel)
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+t1.oil                .              .            +INF         5000.0000      
+t1.biooil             .              .            +INF         4200.0000      
+t1.woodchips          .              .            +INF         1020.0000      
+t2.oil                .              .            +INF         5000.0000      
+t2.biooil             .              .            +INF         4200.0000      
+t2.woodchips          .              .            +INF         1020.0000      
+t3.oil                .              .            +INF         5000.0000      
+t3.biooil             .              .            +INF         4200.0000      
+t3.woodchips          .              .            +INF         1020.0000      
+t4.oil                .              .            +INF         5000.0000      
+t4.biooil             .              .            +INF         4200.0000      
+t4.woodchips          .              .            +INF         1020.0000      
+t5.oil                .              .            +INF         5000.0000      
+t5.biooil             .              .            +INF         4200.0000      
+t5.woodchips          .              .            +INF         1020.0000      
+
+---- VAR uSint_HT  HT fuels used in sinter (t fuel)
+
+                   LOWER          LEVEL          UPPER         MARGINAL
+
+t1.coke              .             0.2250        +INF             .          
+t1.COgas             .              .            +INF         5000.0000      
+t1.hydrogen          .              .            +INF         2000.0000      
+t1.natgas            .              .            +INF         1500.0000      
+t1.biogas            .              .            +INF         1100.0000      
+t1.biochar           .              .            +INF          228.7500      
+t2.coke              .             0.2250        +INF             .          
+t2.COgas             .              .            +INF         5000.0000      
+t2.hydrogen          .              .            +INF         2000.0000      
+t2.natgas            .              .            +INF         1500.0000      
+t2.biogas            .              .            +INF         1100.0000      
+t2.biochar           .              .            +INF          228.7500      
+t3.coke              .             0.2250        +INF             .          
+t3.COgas             .              .            +INF         5000.0000      
+t3.hydrogen          .              .            +INF         2000.0000      
+t3.natgas            .              .            +INF         1500.0000      
+t3.biogas            .              .            +INF         1100.0000      
+t3.biochar           .              .            +INF          228.7500      
+t4.coke              .             0.2250        +INF             .          
+t4.COgas             .              .            +INF         5000.0000      
+t4.hydrogen          .              .            +INF         2000.0000      
+t4.natgas            .              .            +INF         1500.0000      
+t4.biogas            .              .            +INF         1100.0000      
+t4.biochar           .              .            +INF          228.7500      
+t5.coke              .             0.2250        +INF             .          
+t5.COgas             .              .            +INF         5000.0000      
+t5.hydrogen          .              .            +INF         2000.0000      
+t5.natgas            .              .            +INF         1500.0000      
+t5.biogas            .              .            +INF         1100.0000      
+t5.biochar           .              .            +INF          200.0000      
+
+---- VAR pSlag  slag (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .             0.5400        +INF             .          
+s1.t2          .             0.5400        +INF             .          
+s1.t3          .             0.5400        +INF             .          
+s1.t4          .             0.5400        +INF             .          
+s1.t5          .             0.5400        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR pSlagTot  total slag (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF            EPS         
+t2          .              .            +INF            EPS         
+t3          .              .            +INF            EPS         
+t4          .              .            +INF            EPS         
+t5          .              .            +INF            EPS         
+
+---- VAR gOffgas  off-gas from SAF (t)
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+s1.t1          .             0.6075        +INF             .          
+s1.t2          .             0.6075        +INF             .          
+s1.t3          .             0.6075        +INF             .          
+s1.t4          .             0.6075        +INF             .          
+s1.t5          .             0.6943        +INF             .          
+s2.t1          .              .            +INF             .          
+s2.t2          .              .            +INF             .          
+s2.t3          .              .            +INF             .          
+s2.t4          .              .            +INF             .          
+s2.t5          .              .            +INF             .          
+
+---- VAR uTotalCoke_SAF  total coke in SAF (t fuel)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             0.3375        +INF             .          
+t2          .             0.3375        +INF             .          
+t3          .             0.3375        +INF             .          
+t4          .             0.3375        +INF             .          
+t5          .              .            +INF             .          
+
+---- VAR CO2_coke_sint  CO2 from sinter (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             3.2976        +INF             .          
+t2          .             3.2976        +INF             .          
+t3          .             3.2976        +INF             .          
+t4          .             3.2976        +INF             .          
+t5          .             3.2976        +INF             .          
+
+---- VAR CO2_offgas  CO2 from off-gas flaring (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             0.9113        +INF             .          
+t2          .             0.9113        +INF             .          
+t3          .             0.9113        +INF             .          
+t4          .             0.9113        +INF             .          
+t5          .             1.0414        +INF             .          
+
+---- VAR qBiocarbon  biocarbon capacity additions in period t (t fuel per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF            EPS         
+t2          .              .            +INF            EPS         
+t3          .              .            +INF            EPS         
+t4          .              .            +INF            EPS         
+t5          .             0.3857        +INF             .          
+
+---- VAR biocap  available biocarbon capacity in period t (t fuel per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF             .          
+t2          .              .            +INF             .          
+t3          .              .            +INF             .          
+t4          .              .            +INF             .          
+t5          .             0.3857        +INF             .          
+
+---- VAR qCCS  CCS capacity additions in period t (tCO2 per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF            EPS         
+t2          .              .            +INF            EPS         
+t3          .              .            +INF            EPS         
+t4          .              .            +INF            EPS         
+t5          .              .            +INF             .          
+
+---- VAR fCCS  CO2 stream sent to CCS (t per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF             .          
+t2          .              .            +INF             .          
+t3          .              .            +INF             .          
+t4          .              .            +INF             .          
+t5          .              .            +INF             .          
+
+---- VAR CO2_captured  CO2 captured (t per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF             .          
+t2          .              .            +INF             .          
+t3          .              .            +INF             .          
+t4          .              .            +INF             .          
+t5          .              .            +INF           61.1111      
+
+---- VAR CO2_offgas_pot  CO2 with potential to be emitted from off-gas before CCS (t per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             0.9113        +INF             .          
+t2          .             0.9113        +INF             .          
+t3          .             0.9113        +INF             .          
+t4          .             0.9113        +INF             .          
+t5          .             1.0414        +INF             .          
+
+---- VAR CO2_atm_offgas  Residual off-gas CO2 to atmosphere after CCS (t per period)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             0.9113        +INF             .          
+t2          .             0.9113        +INF             .          
+t3          .             0.9113        +INF             .          
+t4          .             0.9113        +INF             .          
+t5          .             1.0414        +INF             .          
+
+---- VAR eCCS_el  Electricity use for CCS (kWh)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF            0.0100      
+t2          .              .            +INF            0.0100      
+t3          .              .            +INF            0.0100      
+t4          .              .            +INF            0.0100      
+t5          .              .            +INF            0.0100      
+
+---- VAR qCCS_th  Steam/thermal use for CCS (kWh_th)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF            EPS         
+t2          .              .            +INF            EPS         
+t3          .              .            +INF            EPS         
+t4          .              .            +INF            EPS         
+t5          .              .            +INF            EPS         
+
+---- VAR CO2_total_net  Net CO2 to atmosphere (t) (sinter process + residual off-gas)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             4.2088        +INF             .          
+t2          .             4.2088        +INF             .          
+t3          .             4.2088        +INF             .          
+t4          .             4.2088        +INF             .          
+t5          .             4.3390        +INF             .          
+
+---- VAR CO2_bio_pre  Biogenic CO2 that would be emitted without CCS (t)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .              .            +INF             .          
+t2          .              .            +INF             .          
+t3          .              .            +INF             .          
+t4          .              .            +INF             .          
+t5          .             1.1571        +INF             .          
+
+---- VAR CO2_ets  ETS-accounted net CO2 (can be negative)
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+t1          .             4.2088        +INF             .          
+t2          .             4.2088        +INF             .          
+t3          .             4.2088        +INF             .          
+t4          .             4.2088        +INF             .          
+t5          .             3.1819        +INF             .          
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR TotalCost         -INF         3987.6857        +INF             .          
+
+  TotalCost  objective (€)
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/14/25 14:42:35 Page 7
+FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
+E x e c u t i o n
+
+
+----    621 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
+
+t1 3.298,    t2 3.298,    t3 3.298,    t4 3.298,    t5 3.298
+
+
+----    621 VARIABLE CO2_offgas_pot.L  CO2 with potential to be emitted from off-gas before CCS (t per period)
+
+t1 0.911,    t2 0.911,    t3 0.911,    t4 0.911,    t5 1.041
+
+
+----    621 VARIABLE CO2_atm_offgas.L  Residual off-gas CO2 to atmosphere after CCS (t per period)
+
+t1 0.911,    t2 0.911,    t3 0.911,    t4 0.911,    t5 1.041
+
+
+----    678 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
+
+t1 3.297600,    t2 3.297600,    t3 3.297600,    t4 3.297600,    t5 3.297600
+
+
+----    678 VARIABLE CO2_offgas.L  CO2 from off-gas flaring (t)
+
+t1 0.911250,    t2 0.911250,    t3 0.911250,    t4 0.911250,    t5 1.041429
+
+
+----    684 PARAMETER CO2_total  Total CO2 per period (t, net)
+
+t1 4.208850,    t2 4.208850,    t3 4.208850,    t4 4.208850,    t5 4.339029
+
+
+----    684 PARAMETER CO2_total_all        =    21.174429  Total CO2 over all periods (t, net)
+
+----    701 PARAMETER ProdTot  Total FeMn+SiMn (t)
+
+t1 1.000000,    t2 1.000000,    t3 1.000000,    t4 1.000000,    t5 1.000000
+
+
+----    701 PARAMETER OffgasProd  Off-gas produced per SAF (t)
+
+            t1          t2          t3          t4          t5
+
+s1    0.607500    0.607500    0.607500    0.607500    0.694286
+
+
+----    701 PARAMETER OffgasFlared  Flared off-gas (t)
+
+t1 0.607500,    t2 0.607500,    t3 0.607500,    t4 0.607500,    t5 0.694286
+
+
+----    701 PARAMETER ETS_cost  ETS cost per period (eur)
+
+t1 420.885000,    t2 420.885000,    t3 420.885000,    t4 420.885000,    t5 318.188571
+
+
+----    701 PARAMETER CO2_intensity  CO2 intensity vs total product (t CO2/t product)
+
+t1 4.208850,    t2 4.208850,    t3 4.208850,    t4 4.208850,    t5 4.339029
+
+
+
+EXECUTION TIME       =        0.047 SECONDS      4 MB  39.1.1 dbf03b78 WEX-WEI
+
+
+USER: Small MUD - 5 User License                     S240604|0002AP-GEN
+      Norwegian University of Science and Technology             DC7530
+      License for teaching and research at degree granting institutions
+
+
+**** FILE SUMMARY
+
+Input      C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_1t_FeMn_produced.gms
+Output     C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_1t_FeMn_produced.lst

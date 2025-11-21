@@ -171,6 +171,8 @@ Parameter
     C_fuel(fuel_all,t)   "cost per t fuel"
     C_quartz(t)     "cost per t quartz"
     C_Si(t)         "cost per t silicon";
+    
+scalar p0 /115/;
 
 * =========================
 * CCS & BIOCARBON PARAMETERS (LP)
@@ -195,7 +197,7 @@ C_CCS_var(t)         = 50;
 C_CCS_TandS(t)       = 0;
 C_CCS_steam(t)       = 0;
 C_CCS_capex(t)       = 100;
-C_Biocarbon_capex(t) = 0;
+C_Biocarbon_capex(t) = 50;
 
 L_CCS       = 20;
 L_Biocarbon = 20;
@@ -586,7 +588,7 @@ C_ore(t)        = 100;
 C_buysinter(t)  = 500;
 C_coke(t)       = 300;
 C_elec(t)       = 0.010;
-C_ets(t)        = 100;
+C_ets(t)        = p0 + 17*(ord(t)-1);
 FIXEDCOST(t)    = 10000;
 
 C_quartz(t) = 50;
@@ -692,15 +694,6 @@ CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinte
 TotalCost_t(t)  = CostByT(t,'total');
 TotalCost_check = sum(t, TotalCost_t(t));
 
-execute_unload 'output_test_2.gdx'
-    CO2_offgas_pot.l, CO2_atm_offgas.l,
-    pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
-    pSinter.l, bSinter.l, eSAF.l, eSint.l,
-    bQuartz.l, bSi.l,
-    CO2_captured.l, CO2_total_net.l, qCCS.l, eCCS_el.l, qCCS_th.l,
-    qBiocarbon.l, biocap.l,
-    CostByT, TotalCost_t, TotalCost_check, costcat;
-
 option decimals=6;
 
 Display CO2_coke_sint.l, CO2_offgas.l;
@@ -725,5 +718,15 @@ ETS_cost(t)     = C_ets(t) * CO2_ets.l(t);
 
 Scalar ep /1e-9/;
 CO2_intensity(t) = CO2_total(t) / max(ProdTot(t), ep);
+
+execute_unload 'output_test_2.gdx',
+    CO2_offgas_pot.l, CO2_atm_offgas.l,
+    pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
+    pSinter.l, bSinter.l, eSAF.l, eSint.l,
+    bQuartz.l, bSi.l,
+    CO2_captured.l, CO2_total_net.l, qCCS.l,
+    qBiocarbon.l, biocap.l, 
+    CostByT, TotalCost_t, TotalCost_check, ETS_cost;
+
 
 Display ProdTot, OffgasProd, OffgasFlared, ETS_cost, CO2_intensity;
