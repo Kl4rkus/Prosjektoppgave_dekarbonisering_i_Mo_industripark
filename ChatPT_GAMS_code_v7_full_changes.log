@@ -1,11 +1,10 @@
-
---- Job ChatPT_GAMS_code_v7_full_changes.gms Start 11/19/25 15:46:25 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Job ChatPT_GAMS_code_v7_full_changes.gms Start 11/24/25 09:39:15 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
 --- Applying:
     C:\GAMS\39\gmsprmNT.txt
 --- GAMS Parameters defined
-    Input "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms"
+    Input C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms
     PageSize 0
-    ScrDir "C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\"
+    ScrDir C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\225a\
     SysDir C:\GAMS\39\
     LogOption 3
     ErrMsg 1
@@ -14,22 +13,22 @@
     LstTitleLeftAligned 1
 Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
           Norwegian University of Science and Technology             DC7530
-          C:\Users\Nicolas\OneDrive\Documents\GAMS\gamslice.txt
+          C:\Users\karl\Documents\GAMS\gamslice.txt
           License Admin: Ruud Egging, ruud.egging@ntnu.no                  
-Processor information: 1 socket(s), 4 core(s), and 8 thread(s) available
+Processor information: 1 socket(s), 10 core(s), and 20 thread(s) available
 GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
 --- Starting compilation
---- ChatPT_GAMS_code_v7_full_changes.gms(732) 3 Mb
---- Starting execution: elapsed 0:00:00.016
---- ChatPT_GAMS_code_v7_full_changes.gms(648) 4 Mb
+--- ChatPT_GAMS_code_v7_full_changes.gms(729) 3 Mb
+--- Starting execution: elapsed 0:00:00.008
+--- ChatPT_GAMS_code_v7_full_changes.gms(646) 4 Mb
 --- Generating LP model FeMn_SiMn_Opt
---- ChatPT_GAMS_code_v7_full_changes.gms(653) 5 Mb
----   2,689 rows  3,031 columns  9,659 non-zeroes
+--- ChatPT_GAMS_code_v7_full_changes.gms(651) 5 Mb
+---   2,689 rows  3,031 columns  9,653 non-zeroes
 --- Range statistics (absolute non-zero finite values)
 --- RHS       [min, max] : [ 4.600E+02, 3.000E+05] - Zero values observed as well
 --- Bound     [min, max] : [        NA,        NA] - Zero values observed as well
 --- Matrix    [min, max] : [ 1.000E-02, 3.330E+04]
---- Executing CPLEX (Solvelink=2): elapsed 0:00:00.032
+--- Executing CPLEX (Solvelink=2): elapsed 0:00:00.332
 
 IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
 
@@ -49,22 +48,22 @@ CPXPARAM_MIP_Display                             4
 CPXPARAM_MIP_Pool_Capacity                       0
 CPXPARAM_MIP_Tolerances_AbsMIPGap                0
 Tried aggregator 1 time.
-LP Presolve eliminated 1451 rows and 857 columns.
+LP Presolve eliminated 1477 rows and 863 columns.
 Aggregator did 748 substitutions.
-Reduced LP has 489 rows, 1426 columns, and 4688 nonzeros.
-Presolve time = 0.00 sec. (3.69 ticks)
+Reduced LP has 463 rows, 1420 columns, and 4510 nonzeros.
+Presolve time = 0.00 sec. (3.65 ticks)
 Symmetry aggregator did 740 additional substitutions.
 Initializing dual steep norms . . .
 
 Iteration log . . .
 Iteration:     1   Dual objective     =      12659997.000000
-Iteration:    93   Dual objective     =     653339675.074581
-Iteration:   177   Dual objective     =    1432821837.737743
+Iteration:    89   Dual objective     =     636667128.407314
+Iteration:   172   Dual objective     =    1410674120.761932
 
 Dual crossover.
   Dual:  Fixing 27 variables.
-       26 DMoves:  Infeasibility  1.03028697e-12  Objective  1.45939222e+09
-        0 DMoves:  Infeasibility  1.03028697e-12  Objective  1.45939222e+09
+       26 DMoves:  Infeasibility  3.48165941e-13  Objective  1.45939222e+09
+        0 DMoves:  Infeasibility  3.48165941e-13  Objective  1.45939222e+09
   Dual:  Pushed 0, exchanged 27.
   Primal:  Fixing 57 variables.
        56 PMoves:  Infeasibility  0.00000000e+00  Objective  1.45939222e+09
@@ -72,16 +71,16 @@ Dual crossover.
   Primal:  Pushed 34, exchanged 23.
 
 --- LP status (1): optimal.
---- Cplex Time: 0.00sec (det. 7.09 ticks)
+--- Cplex Time: 0.00sec (det. 6.96 ticks)
 
 
 Optimal solution found
 Objective:   1459392219.502036
 
 --- Reading solution for model FeMn_SiMn_Opt
---- Executing after solve: elapsed 0:00:00.082
---- ChatPT_GAMS_code_v7_full_changes.gms(722) 5 Mb
---- GDX File (execute_unload) C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
---- ChatPT_GAMS_code_v7_full_changes.gms(732) 5 Mb
+--- Executing after solve: elapsed 0:00:00.714
+--- ChatPT_GAMS_code_v7_full_changes.gms(695) 5 Mb
+--- GDX File (execute_unload) C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\output_test_2.gdx
+--- ChatPT_GAMS_code_v7_full_changes.gms(729) 5 Mb
 *** Status: Normal completion
---- Job ChatPT_GAMS_code_v7_full_changes.gms Stop 11/19/25 15:46:25 elapsed 0:00:00.082
+--- Job ChatPT_GAMS_code_v7_full_changes.gms Stop 11/24/25 09:39:16 elapsed 0:00:00.749

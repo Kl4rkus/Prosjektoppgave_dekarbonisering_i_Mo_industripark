@@ -1,0 +1,73 @@
+B 3 C o m p i l a t i o n
+B 475 Equation Listing    SOLVE production_model Using LP From line 458
+D 478 obj
+D 483 capex_cost
+D 488 cost_mat
+D 493 cost_elec
+D 498 cost_carbon
+D 503 balance
+D 514 heat
+D 525 high_heat
+D 536 input
+D 547 output
+D 558 carbon
+D 569 offgas_out
+D 580 total_carbon
+D 591 capacity
+D 602 opex_cost
+D 607 overflow_costs
+B 613 Column Listing      SOLVE production_model Using LP From line 458
+E 616 z
+E 623 w_max
+E 726 w
+E 757 o
+E 776 c
+E 795 tc
+E 814 i
+E 833 g
+E 852 b
+E 874 u
+E 893 overflow
+E 912 costs_mat
+E 920 costs_elec
+E 928 costs_carbon
+E 936 costs_overflow
+E 944 OPEX
+E 952 CAPEX
+B 961 Range Statistics    SOLVE production_model Using LP From line 458
+B 972 Model Statistics    SOLVE production_model Using LP From line 458
+B 985 Solution Report     SOLVE production_model Using LP From line 458
+F 1020 obj
+F 1021 capex_cost
+F 1022 cost_mat
+F 1023 cost_elec
+F 1024 cost_carbon
+F 1032 balance
+F 1487 heat
+F 1672 high_heat
+F 1857 input
+F 2102 output
+F 2377 carbon
+F 2562 offgas_out
+F 2747 total_carbon
+F 2782 capacity
+F 2939 opex_cost
+F 2940 overflow_costs
+G 2947 z
+G 2951 w_max
+G 2981 w
+G 3166 o
+G 3621 c
+G 3806 tc
+G 3841 i
+G 4086 g
+G 4541 b
+G 5086 u
+G 5631 overflow
+G 6088 costs_mat
+G 6089 costs_elec
+G 6090 costs_carbon
+G 6091 costs_overflow
+G 6092 OPEX
+G 6093 CAPEX
+B 6107 E x e c u t i o n

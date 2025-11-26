@@ -1,4 +1,4 @@
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 1
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 1
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
 C o m p i l a t i o n
 
@@ -176,570 +176,567 @@ C o m p i l a t i o n
  172      C_quartz(t)     "cost per t quartz"
  173      C_Si(t)         "cost per t silicon";
  174   
- 175  scalar p0 /115/;
- 176   
+ 175  * =========================
+ 176  * CCS & BIOCARBON PARAMETERS (LP)
  177  * =========================
- 178  * CCS & BIOCARBON PARAMETERS (LP)
- 179  * =========================
- 180  Scalar
- 181      omega_ccs   "capture efficiency (0..1)" /0.9/
- 182      L_CCS       "CCS lifetime (number of periods)"
- 183      L_Biocarbon "Biocarbon lifetime (number of periods)";
- 184  Parameter
- 185      SEC_CCS_el(t)      "electricity for CCS (kWh per tCO2 captured)"
- 186      SEC_CCS_th(t)      "steam/heat for CCS (kWh_th per tCO2 captured)"
- 187      C_CCS_var(t)       "CCS variable O&M (€/tCO2 captured)"
- 188      C_CCS_TandS(t)     "Transport & storage (€/tCO2 captured)"
- 189      C_CCS_steam(t)     "Steam price for CCS (€/kWh_th)"
- 190      C_CCS_capex(t)     "Capex cost for CCS in investment periods y (€/ (tCO2 per period))"
- 191      C_Biocarbon_capex(t) "Capex cost for biocarbon capacity (€/ (t fuel per period))";
- 192   
- 193  * Initialize so model runs if no data provided
- 194  SEC_CCS_el(t)        = 0;
- 195  SEC_CCS_th(t)        = 0;
- 196  C_CCS_var(t)         = 50;
- 197  C_CCS_TandS(t)       = 0;
- 198  C_CCS_steam(t)       = 0;
- 199  C_CCS_capex(t)       = 100;
- 200  C_Biocarbon_capex(t) = 50;
- 201   
- 202  L_CCS       = 20;
- 203  L_Biocarbon = 20;
- 204   
- 205  * Biogenic CO2 emission factors (t CO2 per t fuel; non-bio = 0)
- 206  Parameter EF_bio(fuel_all) "t CO2 per t fuel (nonzero only for biogenic)";
- 207  EF_bio(fuel_all) = 0;
- 208  EF_bio('biochar')   = 3.0;
- 209  EF_bio('woodchips') = 1.8;
- 210  EF_bio('biooil')    = 3.0;
- 211  EF_bio('biogas')    = 2.0;
- 212   
+ 178  Scalar
+ 179      omega_ccs   "capture efficiency (0..1)" /0.9/
+ 180      L_CCS       "CCS lifetime (number of periods)"
+ 181      L_Biocarbon "Biocarbon lifetime (number of periods)";
+ 182  Parameter
+ 183      SEC_CCS_el(t)      "electricity for CCS (kWh per tCO2 captured)"
+ 184      SEC_CCS_th(t)      "steam/heat for CCS (kWh_th per tCO2 captured)"
+ 185      C_CCS_var(t)       "CCS variable O&M (€/tCO2 captured)"
+ 186      C_CCS_TandS(t)     "Transport & storage (€/tCO2 captured)"
+ 187      C_CCS_steam(t)     "Steam price for CCS (€/kWh_th)"
+ 188      C_CCS_capex(t)     "Capex cost for CCS in investment periods y (€/ (tCO2 per period))"
+ 189      C_Biocarbon_capex(t) "Capex cost for biocarbon capacity (€/ (t fuel per period))";
+ 190   
+ 191  * Initialize so model runs if no data provided
+ 192  SEC_CCS_el(t)        = 0;
+ 193  SEC_CCS_th(t)        = 0;
+ 194  C_CCS_var(t)         = 50;
+ 195  C_CCS_TandS(t)       = 0;
+ 196  C_CCS_steam(t)       = 0;
+ 197  C_CCS_capex(t)       = 100;
+ 198  C_Biocarbon_capex(t) = 0;
+ 199   
+ 200  L_CCS       = 20;
+ 201  L_Biocarbon = 20;
+ 202   
+ 203  * Biogenic CO2 emission factors (t CO2 per t fuel; non-bio = 0)
+ 204  Parameter EF_bio(fuel_all) "t CO2 per t fuel (nonzero only for biogenic)";
+ 205  EF_bio(fuel_all) = 0;
+ 206  EF_bio('biochar')   = 3.0;
+ 207  EF_bio('woodchips') = 1.8;
+ 208  EF_bio('biooil')    = 3.0;
+ 209  EF_bio('biogas')    = 2.0;
+ 210   
+ 211   
+ 212  *Trying to add an inital value for the demand
  213   
- 214  *Trying to add an inital value for the demand
- 215   
+ 214  * =========================
+ 215  * Decision variables
  216  * =========================
- 217  * Decision variables
- 218  * =========================
- 219  Positive Variable
- 220  * Production and material flows
- 221      pFeMn(s,t)        "FeMn production (t)"
- 222      pSiMn(s,t)        "SiMn total production (t)"
- 223      pSinter(t)        "sinter production (t)"
- 224      bSinter(t)        "sinter bought (t)"
- 225      uOre(t)           "ore use (t)"
- 226      uSinterFeMn(s,t)  "sinter used to produce FeMn (t)"
- 227      uSinterSiMn(s,t)  "sinter used to produce SiMn (t)"
- 228   
- 229  * Route-split SiMn production & sinter use
- 230      pSiMn_Si(s,t)         "SiMn via Si route (t)"
- 231      pSiMn_SiO2(s,t)       "SiMn via SiO2 route (t)"
- 232      uSinterSiMn_Si(s,t)   "sinter to SiMn via Si route (t)"
- 233      uSinterSiMn_SiO2(s,t) "sinter to SiMn via SiO2 route (t)"
- 234   
- 235  * Quartz and silicon purchases
- 236      bQuartz(s,t)      "quartz bought for SiMn via SiO2 (t)"
- 237      bSi(s,t)          "silicon bought for SiMn via Si (t)"
- 238   
- 239  * Electricity (kWh)
- 240      eSAF(s,t)         "SAF electricity (kWh)"
- 241      eSint(t)          "sinter electricity (kWh)"
- 242   
- 243  * Heat balances (kWh)
- 244      LT_SAF_FeMn(s,t)  "LT heat in SAF for FeMn (kWh)"
- 245      HT_SAF_FeMn(s,t)  "HT heat in SAF for FeMn (kWh)"
- 246      LT_SAF_SiMn(s,t)  "LT heat in SAF for SiMn (kWh)"
- 247      HT_SAF_SiMn(s,t)  "HT heat in SAF for SiMn (kWh)"
- 248      LT_sint(t)        "LT heat in sinter (kWh)"
- 249      HT_sint(t)        "HT heat in sinter (kWh)"
- 250   
- 251  * Fuel uses (tonnes fuel)
- 252      uSAF(s,t,fuel_all)      "fuel use in SAF for FeMn (t fuel)"
- 253      uSAF_SiMn(s,t,fuel_all) "fuel use in SAF for SiMn (t fuel)"
- 254      uSint_LT(t,fuel_lt)     "LT fuels used in sinter (t fuel)"
- 255      uSint_HT(t,fuel_ht)     "HT fuels used in sinter (t fuel)"
- 256   
- 257  * Slag and off-gas
- 258      pSlag(s,t)        "slag (t)"
- 259      pSlagTot(t)       "total slag (t)"
- 260      gOffgas(s,t)      "off-gas from SAF (t)"
- 261   
- 262  * Coke accounting and emissions
- 263      uTotalCoke_SAF(t) "total coke in SAF (t fuel)"
- 264      CO2_coke_sint(t)  "CO2 from sinter (t)"
- 265      CO2_offgas(t)     "CO2 from off-gas flaring (t)"
- 266   
- 267  * Biocarbon capacity investments
- 268      qBiocarbon(t)     "biocarbon capacity additions in period t (t fuel per period)"
- 269      biocap(t)         "available biocarbon capacity in period t (t fuel per period)"
- 270   
- 271  * CCS variables
- 272      qCCS(t)           "CCS capacity additions in period t (tCO2 per period)"
- 273      fCCS(t)           "CO2 stream sent to CCS (t per period)"
- 274      CO2_captured(t)   "CO2 captured (t per period)"
- 275      CO2_offgas_pot(t) "CO2 with potential to be emitted from off-gas before CCS (t per period)"
- 276      CO2_atm_offgas(t) "Residual off-gas CO2 to atmosphere after CCS (t per period)"
- 277      eCCS_el(t)        "Electricity use for CCS (kWh)"
- 278      qCCS_th(t)        "Steam/thermal use for CCS (kWh_th)"
- 279      CO2_total_net(t)  "Net CO2 to atmosphere (t) (sinter process + residual off-gas)"
- 280      CO2_bio_pre(t)    "Biogenic CO2 that would be emitted without CCS (t)"
- 281      CO2_ets(t)        "ETS-accounted net CO2 (can be negative)";
- 282   
- 283  Variable
- 284      TotalCost         "objective (€)";
- 285   
+ 217  Positive Variable
+ 218  * Production and material flows
+ 219      pFeMn(s,t)        "FeMn production (t)"
+ 220      pSiMn(s,t)        "SiMn total production (t)"
+ 221      pSinter(t)        "sinter production (t)"
+ 222      bSinter(t)        "sinter bought (t)"
+ 223      uOre(t)           "ore use (t)"
+ 224      uSinterFeMn(s,t)  "sinter used to produce FeMn (t)"
+ 225      uSinterSiMn(s,t)  "sinter used to produce SiMn (t)"
+ 226   
+ 227  * Route-split SiMn production & sinter use
+ 228      pSiMn_Si(s,t)         "SiMn via Si route (t)"
+ 229      pSiMn_SiO2(s,t)       "SiMn via SiO2 route (t)"
+ 230      uSinterSiMn_Si(s,t)   "sinter to SiMn via Si route (t)"
+ 231      uSinterSiMn_SiO2(s,t) "sinter to SiMn via SiO2 route (t)"
+ 232   
+ 233  * Quartz and silicon purchases
+ 234      bQuartz(s,t)      "quartz bought for SiMn via SiO2 (t)"
+ 235      bSi(s,t)          "silicon bought for SiMn via Si (t)"
+ 236   
+ 237  * Electricity (kWh)
+ 238      eSAF(s,t)         "SAF electricity (kWh)"
+ 239      eSint(t)          "sinter electricity (kWh)"
+ 240   
+ 241  * Heat balances (kWh)
+ 242      LT_SAF_FeMn(s,t)  "LT heat in SAF for FeMn (kWh)"
+ 243      HT_SAF_FeMn(s,t)  "HT heat in SAF for FeMn (kWh)"
+ 244      LT_SAF_SiMn(s,t)  "LT heat in SAF for SiMn (kWh)"
+ 245      HT_SAF_SiMn(s,t)  "HT heat in SAF for SiMn (kWh)"
+ 246      LT_sint(t)        "LT heat in sinter (kWh)"
+ 247      HT_sint(t)        "HT heat in sinter (kWh)"
+ 248   
+ 249  * Fuel uses (tonnes fuel)
+ 250      uSAF(s,t,fuel_all)      "fuel use in SAF for FeMn (t fuel)"
+ 251      uSAF_SiMn(s,t,fuel_all) "fuel use in SAF for SiMn (t fuel)"
+ 252      uSint_LT(t,fuel_lt)     "LT fuels used in sinter (t fuel)"
+ 253      uSint_HT(t,fuel_ht)     "HT fuels used in sinter (t fuel)"
+ 254   
+ 255  * Slag and off-gas
+ 256      pSlag(s,t)        "slag (t)"
+ 257      pSlagTot(t)       "total slag (t)"
+ 258      gOffgas(s,t)      "off-gas from SAF (t)"
+ 259   
+ 260  * Coke accounting and emissions
+ 261      uTotalCoke_SAF(t) "total coke in SAF (t fuel)"
+ 262      CO2_coke_sint(t)  "CO2 from sinter (t)"
+ 263      CO2_offgas(t)     "CO2 from off-gas flaring (t)"
+ 264   
+ 265  * Biocarbon capacity investments
+ 266      qBiocarbon(t)     "biocarbon capacity additions in period t (t fuel per period)"
+ 267      biocap(t)         "available biocarbon capacity in period t (t fuel per period)"
+ 268   
+ 269  * CCS variables
+ 270      qCCS(t)           "CCS capacity additions in period t (tCO2 per period)"
+ 271      fCCS(t)           "CO2 stream sent to CCS (t per period)"
+ 272      CO2_captured(t)   "CO2 captured (t per period)"
+ 273      CO2_offgas_pot(t) "CO2 with potential to be emitted from off-gas before CCS (t per period)"
+ 274      CO2_atm_offgas(t) "Residual off-gas CO2 to atmosphere after CCS (t per period)"
+ 275      eCCS_el(t)        "Electricity use for CCS (kWh)"
+ 276      qCCS_th(t)        "Steam/thermal use for CCS (kWh_th)"
+ 277      CO2_total_net(t)  "Net CO2 to atmosphere (t) (sinter process + residual off-gas)"
+ 278      CO2_bio_pre(t)    "Biogenic CO2 that would be emitted without CCS (t)"
+ 279      CO2_ets(t)        "ETS-accounted net CO2 (can be negative)";
+ 280   
+ 281  Variable
+ 282      TotalCost         "objective (€)";
+ 283   
+ 284  * =========================
+ 285  * Equations
  286  * =========================
- 287  * Equations
- 288  * =========================
- 289  Equation
- 290      dem_FeMn(t)
- 291      dem_SiMn(t)
- 292   
- 293      ore_to_sinter(t)
- 294      sinter_energy_total(t)
- 295      sinter_ht_min(t)
- 296      sinter_power(t)
- 297      sinter_use_balance(t)
- 298      lt_sint_def(t)
- 299      lt_sint_min_lt(fuel_lt,t)
- 300      ht_sint_def(t)
- 301      ht_sint_min_ht(fuel_ht,t)
- 302   
- 303      FeMn_sinter_link(s,t)
- 304      FeMn_energy_total(s,t)
- 305      FeMn_ht_min(s,t)
- 306      lt_saf_femn_def(s,t)
- 307      lt_saf_femn_min(s,t,fuel_lt)
- 308      ht_saf_femn_def(s,t)
- 309      ht_saf_femn_min(s,t,fuel_ht)
- 310   
- 311      slag_def(s,t)
- 312      slag_tot_def(t)
- 313      SiMn_material_balance(t)
- 314      pSiMn_split_def(s,t)
- 315      uSinterSiMn_split_def(s,t)
- 316      quartz_balance(s,t)
- 317      si_balance(s,t)
- 318   
- 319      lt_saf_simn_def(s,t)
- 320      ht_saf_simn_def(s,t)
- 321      SiMn_energy_total(s,t)
- 322      SiMn_ht_min(s,t)
+ 287  Equation
+ 288      dem_FeMn(t)
+ 289      dem_SiMn(t)
+ 290   
+ 291      ore_to_sinter(t)
+ 292      sinter_energy_total(t)
+ 293      sinter_ht_min(t)
+ 294      sinter_power(t)
+ 295      sinter_use_balance(t)
+ 296      lt_sint_def(t)
+ 297      lt_sint_min_lt(fuel_lt,t)
+ 298      ht_sint_def(t)
+ 299      ht_sint_min_ht(fuel_ht,t)
+ 300   
+ 301      FeMn_sinter_link(s,t)
+ 302      FeMn_energy_total(s,t)
+ 303      FeMn_ht_min(s,t)
+ 304      lt_saf_femn_def(s,t)
+ 305      lt_saf_femn_min(s,t,fuel_lt)
+ 306      ht_saf_femn_def(s,t)
+ 307      ht_saf_femn_min(s,t,fuel_ht)
+ 308   
+ 309      slag_def(s,t)
+ 310      slag_tot_def(t)
+ 311      SiMn_material_balance(t)
+ 312      pSiMn_split_def(s,t)
+ 313      uSinterSiMn_split_def(s,t)
+ 314      quartz_balance(s,t)
+ 315      si_balance(s,t)
+ 316   
+ 317      lt_saf_simn_def(s,t)
+ 318      ht_saf_simn_def(s,t)
+ 319      SiMn_energy_total(s,t)
+ 320      SiMn_ht_min(s,t)
+ 321   
+ 322      e_saf_def(s,t)
  323   
- 324      e_saf_def(s,t)
- 325   
- 326      offgas_def(s,t)
- 327      CO2_coke_sint_def(t)
- 328      CO2_offgas_def(t)
- 329      coke_total_def(t)
- 330   
- 331      capacity_saf(s,t)
- 332      capacity_sinter(t)
- 333   
- 334      biocap_def(t)
- 335      biocarbon_use_limit(t)
- 336   
- 337      co2_offgas_pot_def(t)
- 338      ccs_stream_upper(t)
- 339      ccs_capacity_upper(t)
- 340      ccs_capture_eff(t)
- 341      co2_atm_offgas_def(t)
- 342      co2_total_net_def(t)
- 343      ccs_el_def(t)
- 344      ccs_th_def(t)
- 345      invest_only_y(t)
- 346      invest_biocarbon_only_y(t)
- 347   
- 348      co2_bio_pre_def(t)   "Biogenic CO2 pre-capture"
- 349      co2_ets_def(t)       "ETS-accounted emissions"
+ 324      offgas_def(s,t)
+ 325      CO2_coke_sint_def(t)
+ 326      CO2_offgas_def(t)
+ 327      coke_total_def(t)
+ 328   
+ 329      capacity_saf(s,t)
+ 330      capacity_sinter(t)
+ 331   
+ 332      biocap_def(t)
+ 333      biocarbon_use_limit(t)
+ 334   
+ 335      co2_offgas_pot_def(t)
+ 336      ccs_stream_upper(t)
+ 337      ccs_capacity_upper(t)
+ 338      ccs_capture_eff(t)
+ 339      co2_atm_offgas_def(t)
+ 340      co2_total_net_def(t)
+ 341      ccs_el_def(t)
+ 342      ccs_th_def(t)
+ 343      invest_only_y(t)
+ 344      invest_biocarbon_only_y(t)
+ 345   
+ 346      co2_bio_pre_def(t)   "Biogenic CO2 pre-capture"
+ 347      co2_ets_def(t)       "ETS-accounted emissions"
+ 348   
+ 349      obj;
  350   
- 351      obj;
- 352   
+ 351  * =========================
+ 352  * Constraints
  353  * =========================
- 354  * Constraints
- 355  * =========================
- 356   
- 357  dem_FeMn(t).. sum(s, pFeMn(s,t)) =g= D_FeMn(t);
- 358  dem_SiMn(t).. sum(s, pSiMn(s,t)) =g= D_SiMn(t);
- 359   
- 360  * Split total SiMn into Si and SiO2 routes
- 361  pSiMn_split_def(s,t).. pSiMn(s,t) =e= pSiMn_Si(s,t) + pSiMn_SiO2(s,t);
- 362  uSinterSiMn_split_def(s,t)..
- 363      uSinterSiMn(s,t) =e= uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t);
+ 354   
+ 355  dem_FeMn(t).. sum(s, pFeMn(s,t)) =g= D_FeMn(t);
+ 356  dem_SiMn(t).. sum(s, pSiMn(s,t)) =g= D_SiMn(t);
+ 357   
+ 358  * Split total SiMn into Si and SiO2 routes
+ 359  pSiMn_split_def(s,t).. pSiMn(s,t) =e= pSiMn_Si(s,t) + pSiMn_SiO2(s,t);
+ 360  uSinterSiMn_split_def(s,t)..
+ 361      uSinterSiMn(s,t) =e= uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t);
+ 362   
+ 363  ore_to_sinter(t).. uOre(t) =e= Y_ore_to_sinter * pSinter(t);
  364   
- 365  ore_to_sinter(t).. uOre(t) =e= Y_ore_to_sinter * pSinter(t);
- 366   
- 367  sinter_energy_total(t).. LT_sint(t) + HT_sint(t) =e= TCF_sint(t) * pSinter(t);
- 368  sinter_ht_min(t)..       A_sint_HT_req * pSinter(t) =l= HT_sint(t);
- 369  sinter_power(t)..        eSint(t) =e= eta_sint * pSinter(t);
- 370   
- 371  sinter_use_balance(t)..
- 372      sum(s, uSinterFeMn(s,t)) + sum(s, uSinterSiMn(s,t)) =e= pSinter(t) + bSinter(t);
- 373   
- 374  lt_sint_def(t).. LT_sint(t) =e= sum(fuel_lt, phi_sint_lt(t,fuel_lt) * uSint_LT(t,fuel_lt));
- 375  lt_sint_min_lt(fuel_lt,t).. A_sint_lt(fuel_lt) * LT_sint(t) =l= uSint_LT(t,fuel_lt);
- 376   
- 377  ht_sint_def(t).. HT_sint(t) =e= sum(fuel_ht, phi_sint_ht(t,fuel_ht) * uSint_HT(t,fuel_ht));
- 378  ht_sint_min_ht(fuel_ht,t).. A_sint_ht(fuel_ht) * HT_sint(t) =l= uSint_HT(t,fuel_ht);
+ 365  sinter_energy_total(t).. LT_sint(t) + HT_sint(t) =e= TCF_sint(t) * pSinter(t);
+ 366  sinter_ht_min(t)..       A_sint_HT_req * pSinter(t) =l= HT_sint(t);
+ 367  sinter_power(t)..        eSint(t) =e= eta_sint * pSinter(t);
+ 368   
+ 369  sinter_use_balance(t)..
+ 370      sum(s, uSinterFeMn(s,t)) + sum(s, uSinterSiMn(s,t)) =e= pSinter(t) + bSinter(t);
+ 371   
+ 372  lt_sint_def(t).. LT_sint(t) =e= sum(fuel_lt, phi_sint_lt(t,fuel_lt) * uSint_LT(t,fuel_lt));
+ 373  lt_sint_min_lt(fuel_lt,t).. A_sint_lt(fuel_lt) * LT_sint(t) =l= uSint_LT(t,fuel_lt);
+ 374   
+ 375  ht_sint_def(t).. HT_sint(t) =e= sum(fuel_ht, phi_sint_ht(t,fuel_ht) * uSint_HT(t,fuel_ht));
+ 376  ht_sint_min_ht(fuel_ht,t).. A_sint_ht(fuel_ht) * HT_sint(t) =l= uSint_HT(t,fuel_ht);
+ 377   
+ 378  FeMn_sinter_link(s,t).. uSinterFeMn(s,t) =e= Y_sinter_to_FeMn * pFeMn(s,t);
  379   
- 380  FeMn_sinter_link(s,t).. uSinterFeMn(s,t) =e= Y_sinter_to_FeMn * pFeMn(s,t);
- 381   
- 382  FeMn_energy_total(s,t).. LT_SAF_FeMn(s,t) + HT_SAF_FeMn(s,t) =e= TCF_FeMn(s,t) * pFeMn(s,t);
- 383  FeMn_ht_min(s,t)..       A_SAF_HT_req(s) * pFeMn(s,t) =l= HT_SAF_FeMn(s,t);
- 384   
- 385  lt_saf_femn_def(s,t)..
- 386      LT_SAF_FeMn(s,t) =e= sum(fuel_lt, phi_saf_lt(s,t,fuel_lt) * uSAF(s,t,fuel_lt));
- 387  lt_saf_femn_min(s,t,fuel_lt)..
- 388      A_saf_lt(s,fuel_lt) * LT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_lt);
- 389   
- 390  ht_saf_femn_def(s,t)..
- 391      HT_SAF_FeMn(s,t) =e= sum(fuel_ht, phi_saf_ht(s,t,fuel_ht) * uSAF(s,t,fuel_ht));
- 392  ht_saf_femn_min(s,t,fuel_ht)..
- 393      A_saf_ht(s,fuel_ht) * HT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_ht);
- 394   
- 395  slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
- 396  slag_tot_def(t).. pSlagTot(t) =e= sum(s, pSlag(s,t));
- 397   
- 398  * SiMn material balance including slag & sinter
- 399  SiMn_material_balance(t)..
- 400      Y_sinter_SiMn * sum(s, uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t))
- 401    + Y_slag_SiMn   * pSlagTot(t)
- 402      =e= sum(s, pSiMn_Si(s,t) + pSiMn_SiO2(s,t));
- 403   
- 404  * Quartz and Si balances
- 405  quartz_balance(s,t).. bQuartz(s,t) =e= Y_SiMn_SiO2_quartz * pSiMn_SiO2(s,t);
- 406  si_balance(s,t)..     bSi(s,t)     =e= Y_SiMn_Si_silicon  * pSiMn_Si(s,t);
- 407   
- 408  lt_saf_simn_def(s,t)..
- 409      LT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_lt(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
- 410  ht_saf_simn_def(s,t)..
- 411      HT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_ht(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
- 412   
- 413  * Route-specific SiMn heat
- 414  SiMn_energy_total(s,t)..
- 415      LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t)
- 416      =e= TCF_SiMn_Si(s,t)   * pSiMn_Si(s,t)
- 417         + TCF_SiMn_SiO2(s,t)* pSiMn_SiO2(s,t);
- 418   
- 419  SiMn_ht_min(s,t)..
- 420      A_SAF_SiMn_HT_req(s) * (pSiMn_Si(s,t) + pSiMn_SiO2(s,t)) =l= HT_SAF_SiMn(s,t);
- 421   
- 422  * Route-specific electricity
- 423  e_saf_def(s,t)..
- 424      eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t)
- 425                + nu_SAF_Si(s,t)      * pSiMn_Si(s,t)
- 426                + nu_SAF_SiO2(s,t)    * pSiMn_SiO2(s,t);
- 427   
- 428  * Off-gas production (FeMn + SiMn paths)
- 429  offgas_def(s,t)..
- 430      gOffgas(s,t) =e=
- 431          sum(fuel_all,
- 432                Y_offgas(s,t,fuel_all)     * uSAF(s,t,fuel_all)
- 433              + Y_offgas_smn(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all)
- 434          );
+ 380  FeMn_energy_total(s,t).. LT_SAF_FeMn(s,t) + HT_SAF_FeMn(s,t) =e= TCF_FeMn(s,t) * pFeMn(s,t);
+ 381  FeMn_ht_min(s,t)..       A_SAF_HT_req(s) * pFeMn(s,t) =l= HT_SAF_FeMn(s,t);
+ 382   
+ 383  lt_saf_femn_def(s,t)..
+ 384      LT_SAF_FeMn(s,t) =e= sum(fuel_lt, phi_saf_lt(s,t,fuel_lt) * uSAF(s,t,fuel_lt));
+ 385  lt_saf_femn_min(s,t,fuel_lt)..
+ 386      A_saf_lt(s,fuel_lt) * LT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_lt);
+ 387   
+ 388  ht_saf_femn_def(s,t)..
+ 389      HT_SAF_FeMn(s,t) =e= sum(fuel_ht, phi_saf_ht(s,t,fuel_ht) * uSAF(s,t,fuel_ht));
+ 390  ht_saf_femn_min(s,t,fuel_ht)..
+ 391      A_saf_ht(s,fuel_ht) * HT_SAF_FeMn(s,t) =l= uSAF(s,t,fuel_ht);
+ 392   
+ 393  slag_def(s,t)..   pSlag(s,t) =e= Y_sinter_to_slag * uSinterFeMn(s,t);
+ 394  slag_tot_def(t).. pSlagTot(t) =e= sum(s, pSlag(s,t));
+ 395   
+ 396  * SiMn material balance including slag & sinter
+ 397  SiMn_material_balance(t)..
+ 398      Y_sinter_SiMn * sum(s, uSinterSiMn_Si(s,t) + uSinterSiMn_SiO2(s,t))
+ 399    + Y_slag_SiMn   * pSlagTot(t)
+ 400      =e= sum(s, pSiMn_Si(s,t) + pSiMn_SiO2(s,t));
+ 401   
+ 402  * Quartz and Si balances
+ 403  quartz_balance(s,t).. bQuartz(s,t) =e= Y_SiMn_SiO2_quartz * pSiMn_SiO2(s,t);
+ 404  si_balance(s,t)..     bSi(s,t)     =e= Y_SiMn_Si_silicon  * pSiMn_Si(s,t);
+ 405   
+ 406  lt_saf_simn_def(s,t)..
+ 407      LT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_lt(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 408  ht_saf_simn_def(s,t)..
+ 409      HT_SAF_SiMn(s,t) =e= sum(fuel_all, phi_saf_smn_ht(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all));
+ 410   
+ 411  * Route-specific SiMn heat
+ 412  SiMn_energy_total(s,t)..
+ 413      LT_SAF_SiMn(s,t) + HT_SAF_SiMn(s,t)
+ 414      =e= TCF_SiMn_Si(s,t)   * pSiMn_Si(s,t)
+ 415         + TCF_SiMn_SiO2(s,t)* pSiMn_SiO2(s,t);
+ 416   
+ 417  SiMn_ht_min(s,t)..
+ 418      A_SAF_SiMn_HT_req(s) * (pSiMn_Si(s,t) + pSiMn_SiO2(s,t)) =l= HT_SAF_SiMn(s,t);
+ 419   
+ 420  * Route-specific electricity
+ 421  e_saf_def(s,t)..
+ 422      eSAF(s,t) =e= eta_SAF_FeMn(s,t) * pFeMn(s,t)
+ 423                + nu_SAF_Si(s,t)      * pSiMn_Si(s,t)
+ 424                + nu_SAF_SiO2(s,t)    * pSiMn_SiO2(s,t);
+ 425   
+ 426  * Off-gas production (FeMn + SiMn paths)
+ 427  offgas_def(s,t)..
+ 428      gOffgas(s,t) =e=
+ 429          sum(fuel_all,
+ 430                Y_offgas(s,t,fuel_all)     * uSAF(s,t,fuel_all)
+ 431              + Y_offgas_smn(s,t,fuel_all) * uSAF_SiMn(s,t,fuel_all)
+ 432          );
+ 433   
+ 434  CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
  435   
- 436  CO2_coke_sint_def(t).. CO2_coke_sint(t) =e= EF_coke_sint * pSinter(t);
- 437   
- 438  CO2_offgas_def(t)..
- 439      CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 436  CO2_offgas_def(t)..
+ 437      CO2_offgas(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 438   
+ 439  coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
  440   
- 441  coke_total_def(t).. uTotalCoke_SAF(t) =e= sum(s, uSAF(s,t,'coke'));
- 442   
- 443  capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
- 444  capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
- 445   
- 446  * Biocarbon capacity accumulation and usage limit
- 447  biocap_def(t)..
- 448      biocap(t) =e=
- 449         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_Biocarbon ),
- 450             qBiocarbon(ty));
- 451   
- 452  biocarbon_use_limit(t)..
- 453      sum(s, uSAF(s,t,'biochar') + uSAF_SiMn(s,t,'biochar'))
- 454    + uSint_HT(t,'biochar')
- 455      =l= biocap(t);
- 456   
+ 441  capacity_saf(s,t)..  pFeMn(s,t) + pSiMn(s,t) =l= Q_SAF(s,t);
+ 442  capacity_sinter(t).. pSinter(t)              =l= Q_sint(t);
+ 443   
+ 444  * Biocarbon capacity accumulation and usage limit
+ 445  biocap_def(t)..
+ 446      biocap(t) =e=
+ 447         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_Biocarbon ),
+ 448             qBiocarbon(ty));
+ 449   
+ 450  biocarbon_use_limit(t)..
+ 451      sum(s, uSAF(s,t,'biochar') + uSAF_SiMn(s,t,'biochar'))
+ 452    + uSint_HT(t,'biochar')
+ 453      =l= biocap(t);
+ 454   
+ 455  * =========================
+ 456  * CCS equations
  457  * =========================
- 458  * CCS equations
- 459  * =========================
- 460   
- 461  co2_offgas_pot_def(t)..
- 462      CO2_offgas_pot(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 458   
+ 459  co2_offgas_pot_def(t)..
+ 460      CO2_offgas_pot(t) =e= ( sum(s, gOffgas(s,t)) - D_offgas(t) ) * EF_flare;
+ 461   
+ 462  ccs_stream_upper(t)..      fCCS(t) =l= CO2_offgas_pot(t);
  463   
- 464  ccs_stream_upper(t)..      fCCS(t) =l= CO2_offgas_pot(t);
- 465   
- 466  * Lifetime-limited CCS capacity
- 467  ccs_capacity_upper(t)..
- 468      fCCS(t) =l=
- 469         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_CCS ),
- 470             qCCS(ty));
- 471   
- 472  ccs_capture_eff(t)..
- 473      CO2_captured(t) =l= omega_ccs * fCCS(t);
- 474   
- 475  co2_atm_offgas_def(t)..
- 476      CO2_atm_offgas(t) =e= CO2_offgas_pot(t) - CO2_captured(t);
- 477   
- 478  co2_total_net_def(t)..
- 479      CO2_total_net(t) =e= CO2_coke_sint(t) + CO2_atm_offgas(t);
- 480   
- 481  ccs_el_def(t)..  eCCS_el(t) =e= SEC_CCS_el(t) * CO2_captured(t);
- 482  ccs_th_def(t)..  qCCS_th(t) =e= SEC_CCS_th(t) * CO2_captured(t);
- 483   
- 484  invest_only_y(t)$(not y(t))..
- 485      qCCS(t) =e= 0;
- 486   
- 487  invest_biocarbon_only_y(t)$(not y(t))..
- 488      qBiocarbon(t) =e= 0;
- 489   
- 490   
+ 464  * Lifetime-limited CCS capacity
+ 465  ccs_capacity_upper(t)..
+ 466      fCCS(t) =l=
+ 467         sum(ty$( y(ty) and ord(t) >= ord(ty) and (ord(t) - ord(ty)) < L_CCS ),
+ 468             qCCS(ty));
+ 469   
+ 470  ccs_capture_eff(t)..
+ 471      CO2_captured(t) =l= omega_ccs * fCCS(t);
+ 472   
+ 473  co2_atm_offgas_def(t)..
+ 474      CO2_atm_offgas(t) =e= CO2_offgas_pot(t) - CO2_captured(t);
+ 475   
+ 476  co2_total_net_def(t)..
+ 477      CO2_total_net(t) =e= CO2_coke_sint(t) + CO2_atm_offgas(t);
+ 478   
+ 479  ccs_el_def(t)..  eCCS_el(t) =e= SEC_CCS_el(t) * CO2_captured(t);
+ 480  ccs_th_def(t)..  qCCS_th(t) =e= SEC_CCS_th(t) * CO2_captured(t);
+ 481   
+ 482  invest_only_y(t)$(not y(t))..
+ 483      qCCS(t) =e= 0;
+ 484   
+ 485  invest_biocarbon_only_y(t)$(not y(t))..
+ 486      qBiocarbon(t) =e= 0;
+ 487   
+ 488   
+ 489  * =========================
+ 490  * Biogenic CO2 & ETS accounting
  491  * =========================
- 492  * Biogenic CO2 & ETS accounting
- 493  * =========================
- 494   
- 495  * Total biogenic CO2 that would be emitted if there were no CCS
- 496  co2_bio_pre_def(t)..
- 497      CO2_bio_pre(t) =e=
- 498            sum(s, sum(fuel_bio,
- 499                          EF_bio(fuel_bio)
- 500                        * ( uSAF(s,t,fuel_bio)
- 501                          + uSAF_SiMn(s,t,fuel_bio) )))
- 502          + sum(fuel_lt$(fuel_bio(fuel_lt)),
- 503                  EF_bio(fuel_lt) * uSint_LT(t,fuel_lt))
- 504          + sum(fuel_ht$(fuel_bio(fuel_ht)),
- 505                  EF_bio(fuel_ht) * uSint_HT(t,fuel_ht));
- 506   
- 507   
- 508  * ETS-accounted emissions:
- 509  *   physical net emissions (CO2_total_net)
- 510  *   minus all biogenic CO2 (treated as climate-neutral),
- 511  * which automatically allows negative emissions when CCS captures more
- 512  * than fossil emissions.
- 513  co2_ets_def(t)..
- 514      CO2_ets(t) =e= CO2_total_net(t) - CO2_bio_pre(t);
- 515   
- 516   
+ 492   
+ 493  * Total biogenic CO2 that would be emitted if there were no CCS
+ 494  co2_bio_pre_def(t)..
+ 495      CO2_bio_pre(t) =e=
+ 496            sum(s, sum(fuel_bio,
+ 497                          EF_bio(fuel_bio)
+ 498                        * ( uSAF(s,t,fuel_bio)
+ 499                          + uSAF_SiMn(s,t,fuel_bio) )))
+ 500          + sum(fuel_lt$(fuel_bio(fuel_lt)),
+ 501                  EF_bio(fuel_lt) * uSint_LT(t,fuel_lt))
+ 502          + sum(fuel_ht$(fuel_bio(fuel_ht)),
+ 503                  EF_bio(fuel_ht) * uSint_HT(t,fuel_ht));
+ 504   
+ 505   
+ 506  * ETS-accounted emissions:
+ 507  *   physical net emissions (CO2_total_net)
+ 508  *   minus all biogenic CO2 (treated as climate-neutral),
+ 509  * which automatically allows negative emissions when CCS captures more
+ 510  * than fossil emissions.
+ 511  co2_ets_def(t)..
+ 512      CO2_ets(t) =e= CO2_total_net(t) - CO2_bio_pre(t);
+ 513   
+ 514   
+ 515  * =========================
+ 516  * Objective function
  517  * =========================
- 518  * Objective function
- 519  * =========================
- 520  obj..
- 521      TotalCost =e=
- 522        sum(t,
- 523             FIXEDCOST(t)
- 524           + C_ore(t)        * uOre(t)
- 525           + C_buysinter(t)  * bSinter(t)
- 526           + C_elec(t)       * ( sum(s, eSAF(s,t)) + eSint(t) + eCCS_el(t) )
- 527           + C_ets(t)        * CO2_ets(t)
- 528           + sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF(s,t,fuel_all) + uSAF_SiMn(s,t,fuel_all) )))
- 529           + sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT(t,fuel_lt))
- 530           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
- 531           + ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured(t)
- 532           + C_CCS_steam(t) * qCCS_th(t)
- 533           + sum(s, C_quartz(t) * bQuartz(s,t))
- 534           + sum(s, C_Si(t)     * bSi(s,t))
- 535          )
- 536        + sum(t$y(t), C_CCS_capex(t)        * qCCS(t))
- 537        + sum(t$y(t), C_Biocarbon_capex(t)  * qBiocarbon(t));
- 538   
+ 518  obj..
+ 519      TotalCost =e=
+ 520        sum(t,
+ 521             FIXEDCOST(t)
+ 522           + C_ore(t)        * uOre(t)
+ 523           + C_buysinter(t)  * bSinter(t)
+ 524           + C_elec(t)       * ( sum(s, eSAF(s,t)) + eSint(t) + eCCS_el(t) )
+ 525           + C_ets(t)        * CO2_ets(t)
+ 526           + sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF(s,t,fuel_all) + uSAF_SiMn(s,t,fuel_all) )))
+ 527           + sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT(t,fuel_lt))
+ 528           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT(t,fuel_ht))
+ 529           + ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured(t)
+ 530           + C_CCS_steam(t) * qCCS_th(t)
+ 531           + sum(s, C_quartz(t) * bQuartz(s,t))
+ 532           + sum(s, C_Si(t)     * bSi(s,t))
+ 533          )
+ 534        + sum(t$y(t), C_CCS_capex(t)        * qCCS(t))
+ 535        + sum(t$y(t), C_Biocarbon_capex(t)  * qBiocarbon(t));
+ 536   
+ 537  * =========================
+ 538  * Model & Test data
  539  * =========================
- 540  * Model & Test data
- 541  * =========================
- 542  Model FeMn_SiMn_Opt / all /;
+ 540  Model FeMn_SiMn_Opt / all /;
+ 541   
+ 542  * --- Test data (example numbers) ---
  543   
- 544  * --- Test data (example numbers) ---
- 545   
- 546  Y_ore_to_sinter  = 1;
- 547  Y_sinter_to_FeMn = 1.8;
- 548  Y_sinter_to_slag = 0.3;
- 549   
- 550  Y_sinter_SiMn      = 1.8;
- 551  Y_slag_SiMn        = 0.6;
- 552  Y_SiMn_SiO2_quartz = 0.4;
- 553  Y_SiMn_Si_silicon  = 0.4;
- 554   
- 555  Y_offgas(s,t,fuel_all)     = 1.8;
- 556  Y_offgas_smn(s,t,fuel_all) = 1.8;
- 557   
- 558  EF_coke_sint = 1.832;
- 559  EF_flare     = 1.5;
- 560  D_offgas(t)  = 0;
- 561   
- 562  eta_SAF_FeMn(s,t) = 2850;
- 563  nu_SAF_SiMn(s,t)  = 6000;
- 564  nu_SAF_Si(s,t)    = 2500;
- 565  nu_SAF_SiO2(s,t)  = 4500;
+ 544  Y_ore_to_sinter  = 1;
+ 545  Y_sinter_to_FeMn = 1.8;
+ 546  Y_sinter_to_slag = 0.3;
+ 547   
+ 548  Y_sinter_SiMn      = 1.8;
+ 549  Y_slag_SiMn        = 0.6;
+ 550  Y_SiMn_SiO2_quartz = 0.4;
+ 551  Y_SiMn_Si_silicon  = 0.4;
+ 552   
+ 553  Y_offgas(s,t,fuel_all)     = 1.8;
+ 554  Y_offgas_smn(s,t,fuel_all) = 1.8;
+ 555   
+ 556  EF_coke_sint = 1.832;
+ 557  EF_flare     = 1.5;
+ 558  D_offgas(t)  = 0;
+ 559   
+ 560  eta_SAF_FeMn(s,t) = 2850;
+ 561  nu_SAF_SiMn(s,t)  = 6000;
+ 562  nu_SAF_Si(s,t)    = 2500;
+ 563  nu_SAF_SiO2(s,t)  = 4500;
+ 564   
+ 565  eta_sint          = 90;
  566   
- 567  eta_sint          = 90;
- 568   
- 569  TCF_FeMn(s,t) = 2700;
- 570  *TCF_SiMn(s,t) = 4500;
- 571  TCF_SiMn_Si(s,t)   = 2500;
- 572  TCF_SiMn_SiO2(s,t) =       4500;
- 573  TCF_sint(t)   = 1000;
- 574   
- 575  A_sint_HT_req         = 0;
- 576  A_SAF_HT_req(s)       = 0.2;
- 577  A_SAF_SiMn_HT_req(s)  = 0;
- 578   
- 579  A_saf_lt(s,fuel_lt) = 0;
- 580  A_saf_ht(s,fuel_ht) = 0;
- 581  A_sint_lt(fuel_lt)  = 0;
- 582  A_sint_ht(fuel_ht)  = 0;
- 583   
- 584  Q_SAF(s,t) = 120000;
- 585  Q_sint(t)  = 120000;
- 586   
- 587  C_ore(t)        = 100;
- 588  C_buysinter(t)  = 500;
- 589  C_coke(t)       = 300;
- 590  C_elec(t)       = 0.010;
- 591  C_ets(t)        = p0 + 17*(ord(t)-1);
- 592  FIXEDCOST(t)    = 10000;
- 593   
- 594  C_quartz(t) = 50;
- 595  C_Si(t)     = 250;
- 596   
- 597  C_fuel(fuel_all,t) = 0;
- 598  C_fuel('coke',t)      = C_coke(t);
- 599  C_fuel('oil',t)       = 500;
- 600  C_fuel('biooil',t)    = 450;
- 601  C_fuel('woodchips',t) = 120;
- 602  C_fuel('COgas',t)     = 500;
- 603  C_fuel('hydrogen',t)  = 2000;
- 604  C_fuel('natgas',t)    = 150;
- 605  C_fuel('biogas',t)    = 130;
- 606  C_fuel('biochar',t)   = 400;
- 607   
- 608  phi_sint_lt(t,fuel_lt)        = 0;
- 609  phi_sint_ht(t,fuel_ht)        = 0;
- 610  phi_saf_lt(s,t,fuel_lt)       = 0;
- 611  phi_saf_ht(s,t,fuel_ht)       = 0;
- 612  phi_saf_smn_lt(s,t,fuel_all)  = 0;
- 613  phi_saf_smn_ht(s,t,fuel_all)  = 0;
- 614   
- 615  Scalar
- 616      LHV_coke       /  8000 /
- 617      LHV_biochar    /  7000 /
- 618      LHV_oil        / 11600 /
- 619      LHV_biooil     /  5000 /
- 620      LHV_woodchips  /  2500 /
- 621      LHV_natgas     / 13900 /
- 622      LHV_biogas     /  6000 /
- 623      LHV_COgas      /  2400 /
- 624      LHV_hydrogen   / 33300 /;
+ 567  TCF_FeMn(s,t) = 2700;
+ 568  *TCF_SiMn(s,t) = 4500;
+ 569  TCF_SiMn_Si(s,t)   = 2500;
+ 570  TCF_SiMn_SiO2(s,t) =       4500;
+ 571  TCF_sint(t)   = 1000;
+ 572   
+ 573  A_sint_HT_req         = 0;
+ 574  A_SAF_HT_req(s)       = 0.2;
+ 575  A_SAF_SiMn_HT_req(s)  = 0;
+ 576   
+ 577  A_saf_lt(s,fuel_lt) = 0;
+ 578  A_saf_ht(s,fuel_ht) = 0;
+ 579  A_sint_lt(fuel_lt)  = 0;
+ 580  A_sint_ht(fuel_ht)  = 0;
+ 581   
+ 582  Q_SAF(s,t) = 120000;
+ 583  Q_sint(t)  = 120000;
+ 584   
+ 585  C_ore(t)        = 100;
+ 586  C_buysinter(t)  = 500;
+ 587  C_coke(t)       = 300;
+ 588  C_elec(t)       = 0.010;
+ 589  C_ets(t)        = 100;
+ 590  FIXEDCOST(t)    = 10000;
+ 591   
+ 592  C_quartz(t) = 50;
+ 593  C_Si(t)     = 250;
+ 594   
+ 595  C_fuel(fuel_all,t) = 0;
+ 596  C_fuel('coke',t)      = C_coke(t);
+ 597  C_fuel('oil',t)       = 500;
+ 598  C_fuel('biooil',t)    = 450;
+ 599  C_fuel('woodchips',t) = 120;
+ 600  C_fuel('COgas',t)     = 500;
+ 601  C_fuel('hydrogen',t)  = 2000;
+ 602  C_fuel('natgas',t)    = 150;
+ 603  C_fuel('biogas',t)    = 130;
+ 604  C_fuel('biochar',t)   = 400;
+ 605   
+ 606  phi_sint_lt(t,fuel_lt)        = 0;
+ 607  phi_sint_ht(t,fuel_ht)        = 0;
+ 608  phi_saf_lt(s,t,fuel_lt)       = 0;
+ 609  phi_saf_ht(s,t,fuel_ht)       = 0;
+ 610  phi_saf_smn_lt(s,t,fuel_all)  = 0;
+ 611  phi_saf_smn_ht(s,t,fuel_all)  = 0;
+ 612   
+ 613  Scalar
+ 614      LHV_coke       /  8000 /
+ 615      LHV_biochar    /  7000 /
+ 616      LHV_oil        / 11600 /
+ 617      LHV_biooil     /  5000 /
+ 618      LHV_woodchips  /  2500 /
+ 619      LHV_natgas     / 13900 /
+ 620      LHV_biogas     /  6000 /
+ 621      LHV_COgas      /  2400 /
+ 622      LHV_hydrogen   / 33300 /;
+ 623   
+ 624  phi_sint_ht(t,'coke') = LHV_coke;
  625   
- 626  phi_sint_ht(t,'coke') = LHV_coke;
- 627   
- 628  phi_saf_ht(s,t,'coke')     = LHV_coke;
- 629  phi_saf_ht(s,t,'biochar')  = LHV_biochar;
- 630  phi_saf_ht(s,t,'COgas')    = LHV_COgas;
- 631  phi_saf_ht(s,t,'hydrogen') = LHV_hydrogen;
- 632  phi_saf_ht(s,t,'natgas')   = LHV_natgas;
- 633  phi_saf_ht(s,t,'biogas')   = LHV_biogas;
- 634   
- 635  phi_saf_lt(s,t,'oil')       = LHV_oil;
- 636  phi_saf_lt(s,t,'biooil')    = LHV_biooil;
- 637  phi_saf_lt(s,t,'woodchips') = LHV_woodchips;
- 638   
- 639  phi_saf_smn_ht(s,t,'coke')     = LHV_coke;
- 640  phi_saf_smn_ht(s,t,'biochar')  = LHV_biochar;
- 641  phi_saf_smn_ht(s,t,'COgas')    = LHV_COgas;
- 642  phi_saf_smn_ht(s,t,'hydrogen') = LHV_hydrogen;
- 643  phi_saf_smn_ht(s,t,'natgas')   = LHV_natgas;
- 644  phi_saf_smn_ht(s,t,'biogas')   = LHV_biogas;
- 645   
- 646  phi_saf_smn_lt(s,t,'oil')       = LHV_oil;
- 647  phi_saf_smn_lt(s,t,'biooil')    = LHV_biooil;
- 648  phi_saf_smn_lt(s,t,'woodchips') = LHV_woodchips;
- 649   
+ 626  phi_saf_ht(s,t,'coke')     = LHV_coke;
+ 627  phi_saf_ht(s,t,'biochar')  = LHV_biochar;
+ 628  phi_saf_ht(s,t,'COgas')    = LHV_COgas;
+ 629  phi_saf_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 630  phi_saf_ht(s,t,'natgas')   = LHV_natgas;
+ 631  phi_saf_ht(s,t,'biogas')   = LHV_biogas;
+ 632   
+ 633  phi_saf_lt(s,t,'oil')       = LHV_oil;
+ 634  phi_saf_lt(s,t,'biooil')    = LHV_biooil;
+ 635  phi_saf_lt(s,t,'woodchips') = LHV_woodchips;
+ 636   
+ 637  phi_saf_smn_ht(s,t,'coke')     = LHV_coke;
+ 638  phi_saf_smn_ht(s,t,'biochar')  = LHV_biochar;
+ 639  phi_saf_smn_ht(s,t,'COgas')    = LHV_COgas;
+ 640  phi_saf_smn_ht(s,t,'hydrogen') = LHV_hydrogen;
+ 641  phi_saf_smn_ht(s,t,'natgas')   = LHV_natgas;
+ 642  phi_saf_smn_ht(s,t,'biogas')   = LHV_biogas;
+ 643   
+ 644  phi_saf_smn_lt(s,t,'oil')       = LHV_oil;
+ 645  phi_saf_smn_lt(s,t,'biooil')    = LHV_biooil;
+ 646  phi_saf_smn_lt(s,t,'woodchips') = LHV_woodchips;
+ 647   
+ 648  * =========================
+ 649  * Solve
  650  * =========================
- 651  * Solve
- 652  * =========================
- 653  Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
+ 651  Solve FeMn_SiMn_Opt using LP minimizing TotalCost;
+ 652   
+ 653  Display CO2_coke_sint.l, CO2_offgas_pot.l, CO2_atm_offgas.l;
  654   
- 655  Display CO2_coke_sint.l, CO2_offgas_pot.l, CO2_atm_offgas.l;
- 656   
- 657  * ===== Per-period cost breakdown =====
- 658  Set costcat / fixed, ore, buysinter, elec, fuel_SAF, fuel_sint,
- 659                quartz, silicon, ccs_var_ts, ccs_steam, ets,
- 660                capex_ccs, capex_biocarb, total /;
- 661  Parameter CostByT(t,costcat) "Cost breakdown by period (EUR)"
- 662            TotalCost_t(t)      "Total cost per period (EUR)"
- 663            TotalCost_check     "Sum over periods (EUR)";
- 664   
- 665  CostByT(t,'fixed')     = FIXEDCOST(t);
- 666  CostByT(t,'ore')       = C_ore(t)       * uOre.l(t);
- 667  CostByT(t,'buysinter') = C_buysinter(t) * bSinter.l(t);
+ 655  * ===== Per-period cost breakdown =====
+ 656  Set costcat / fixed, ore, buysinter, elec, fuel_SAF, fuel_sint,
+ 657                quartz, silicon, ccs_var_ts, ccs_steam, ets,
+ 658                capex_ccs, capex_biocarb, total /;
+ 659  Parameter CostByT(t,costcat) "Cost breakdown by period (EUR)"
+ 660            TotalCost_t(t)      "Total cost per period (EUR)"
+ 661            TotalCost_check     "Sum over periods (EUR)";
+ 662   
+ 663  CostByT(t,'fixed')     = FIXEDCOST(t);
+ 664  CostByT(t,'ore')       = C_ore(t)       * uOre.l(t);
+ 665  CostByT(t,'buysinter') = C_buysinter(t) * bSinter.l(t);
+ 666   
+ 667  CostByT(t,'elec') = C_elec(t) * ( sum(s, eSAF.l(s,t)) + eSint.l(t) + eCCS_el.l(t) );
  668   
- 669  CostByT(t,'elec') = C_elec(t) * ( sum(s, eSAF.l(s,t)) + eSint.l(t) + eCCS_el.l(t) );
- 670   
- 671  CostByT(t,'fuel_SAF')  = sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF.l(s,t,fuel_all) + uSAF_SiMn.l(s,t,fuel_all) )));
- 672  CostByT(t,'fuel_sint') =   sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT.l(t,fuel_lt))
- 673                           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT.l(t,fuel_ht));
- 674   
- 675  CostByT(t,'quartz')  = sum(s, C_quartz(t) * bQuartz.l(s,t));
- 676  CostByT(t,'silicon') = sum(s, C_Si(t)     * bSi.l(s,t));
- 677   
- 678  CostByT(t,'ccs_var_ts') = ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured.l(t);
- 679  CostByT(t,'ccs_steam')  = C_CCS_steam(t) * qCCS_th.l(t);
+ 669  CostByT(t,'fuel_SAF')  = sum(s, sum(fuel_all, C_fuel(fuel_all,t) * ( uSAF.l(s,t,fuel_all) + uSAF_SiMn.l(s,t,fuel_all) )));
+ 670  CostByT(t,'fuel_sint') =   sum(fuel_lt, C_fuel(fuel_lt,t) * uSint_LT.l(t,fuel_lt))
+ 671                           + sum(fuel_ht, C_fuel(fuel_ht,t) * uSint_HT.l(t,fuel_ht));
+ 672   
+ 673  CostByT(t,'quartz')  = sum(s, C_quartz(t) * bQuartz.l(s,t));
+ 674  CostByT(t,'silicon') = sum(s, C_Si(t)     * bSi.l(s,t));
+ 675   
+ 676  CostByT(t,'ccs_var_ts') = ( C_CCS_var(t) + C_CCS_TandS(t) ) * CO2_captured.l(t);
+ 677  CostByT(t,'ccs_steam')  = C_CCS_steam(t) * qCCS_th.l(t);
+ 678   
+ 679  CostByT(t,'ets') = C_ets(t) * CO2_ets.l(t);
  680   
- 681  CostByT(t,'ets') = C_ets(t) * CO2_ets.l(t);
- 682   
- 683  CostByT(t,'capex_ccs')     = 0;
- 684  CostByT(t,'capex_ccs')$y(t)     = C_CCS_capex(t)       * qCCS.l(t);
- 685  CostByT(t,'capex_biocarb') = 0;
- 686  CostByT(t,'capex_biocarb')$y(t) = C_Biocarbon_capex(t) * qBiocarbon.l(t);
- 687   
- 688  CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinter')
- 689                     + CostByT(t,'elec')  + CostByT(t,'fuel_SAF') + CostByT(t,'fuel_sint')
- 690                     + CostByT(t,'quartz') + CostByT(t,'silicon')
- 691                     + CostByT(t,'ccs_var_ts') + CostByT(t,'ccs_steam') + CostByT(t,'ets')
- 692                     + CostByT(t,'capex_ccs') + CostByT(t,'capex_biocarb');
- 693   
- 694  TotalCost_t(t)  = CostByT(t,'total');
- 695  TotalCost_check = sum(t, TotalCost_t(t));
- 696   
- 697  option decimals=6;
- 698   
- 699  Display CO2_coke_sint.l, CO2_offgas.l;
- 700   
- 701  Parameter CO2_total(t) "Total CO2 per period (t, net)";
- 702  CO2_total(t) = CO2_total_net.l(t);
- 703  Scalar CO2_total_all "Total CO2 over all periods (t, net)";
- 704  CO2_total_all = sum(t, CO2_total(t));
- 705  Display CO2_total, CO2_total_all;
- 706   
- 707  Parameter
- 708      ProdTot(t)         "Total FeMn+SiMn (t)"
- 709      OffgasProd(s,t)    "Off-gas produced per SAF (t)"
- 710      OffgasFlared(t)    "Flared off-gas (t)"
- 711      ETS_cost(t)        "ETS cost per period (eur)"
- 712      CO2_intensity(t)   "CO2 intensity vs total product (t CO2/t product)";
+ 681  CostByT(t,'capex_ccs')     = 0;
+ 682  CostByT(t,'capex_ccs')$y(t)     = C_CCS_capex(t)       * qCCS.l(t);
+ 683  CostByT(t,'capex_biocarb') = 0;
+ 684  CostByT(t,'capex_biocarb')$y(t) = C_Biocarbon_capex(t) * qBiocarbon.l(t);
+ 685   
+ 686  CostByT(t,'total') = CostByT(t,'fixed') + CostByT(t,'ore') + CostByT(t,'buysinter')
+ 687                     + CostByT(t,'elec')  + CostByT(t,'fuel_SAF') + CostByT(t,'fuel_sint')
+ 688                     + CostByT(t,'quartz') + CostByT(t,'silicon')
+ 689                     + CostByT(t,'ccs_var_ts') + CostByT(t,'ccs_steam') + CostByT(t,'ets')
+ 690                     + CostByT(t,'capex_ccs') + CostByT(t,'capex_biocarb');
+ 691   
+ 692  TotalCost_t(t)  = CostByT(t,'total');
+ 693  TotalCost_check = sum(t, TotalCost_t(t));
+ 694   
+ 695  execute_unload 'output_test_2.gdx'
+ 696      CO2_offgas_pot.l, CO2_atm_offgas.l,
+ 697      pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
+ 698      pSinter.l, bSinter.l, eSAF.l, eSint.l,
+ 699      bQuartz.l, bSi.l,
+ 700      CO2_captured.l, CO2_total_net.l, qCCS.l, eCCS_el.l, qCCS_th.l,
+ 701      qBiocarbon.l, biocap.l,
+ 702      CostByT, TotalCost_t, TotalCost_check, costcat;
+ 703   
+ 704  option decimals=6;
+ 705   
+ 706  Display CO2_coke_sint.l, CO2_offgas.l;
+ 707   
+ 708  Parameter CO2_total(t) "Total CO2 per period (t, net)";
+ 709  CO2_total(t) = CO2_total_net.l(t);
+ 710  Scalar CO2_total_all "Total CO2 over all periods (t, net)";
+ 711  CO2_total_all = sum(t, CO2_total(t));
+ 712  Display CO2_total, CO2_total_all;
  713   
- 714  ProdTot(t)      = sum(s, pFeMn.l(s,t) + pSiMn.l(s,t));
- 715  OffgasProd(s,t) = gOffgas.l(s,t);
- 716  OffgasFlared(t) = sum(s, gOffgas.l(s,t)) - D_offgas(t);
- 717  ETS_cost(t)     = C_ets(t) * CO2_ets.l(t);
- 718   
- 719  Scalar ep /1e-9/;
- 720  CO2_intensity(t) = CO2_total(t) / max(ProdTot(t), ep);
- 721   
- 722  execute_unload 'output_test_2.gdx',
- 723      CO2_offgas_pot.l, CO2_atm_offgas.l,
- 724      pFeMn.l, pSiMn.l, pSiMn_Si.l, pSiMn_SiO2.l,
- 725      pSinter.l, bSinter.l, eSAF.l, eSint.l,
- 726      bQuartz.l, bSi.l,
- 727      CO2_captured.l, CO2_total_net.l, qCCS.l,
- 728      qBiocarbon.l, biocap.l,
- 729      CostByT, TotalCost_t, TotalCost_check, ETS_cost;
- 730   
- 731   
- 732  Display ProdTot, OffgasProd, OffgasFlared, ETS_cost, CO2_intensity;
+ 714  Parameter
+ 715      ProdTot(t)         "Total FeMn+SiMn (t)"
+ 716      OffgasProd(s,t)    "Off-gas produced per SAF (t)"
+ 717      OffgasFlared(t)    "Flared off-gas (t)"
+ 718      ETS_cost(t)        "ETS cost per period (eur)"
+ 719      CO2_intensity(t)   "CO2 intensity vs total product (t CO2/t product)";
+ 720   
+ 721  ProdTot(t)      = sum(s, pFeMn.l(s,t) + pSiMn.l(s,t));
+ 722  OffgasProd(s,t) = gOffgas.l(s,t);
+ 723  OffgasFlared(t) = sum(s, gOffgas.l(s,t)) - D_offgas(t);
+ 724  ETS_cost(t)     = C_ets(t) * CO2_ets.l(t);
+ 725   
+ 726  Scalar ep /1e-9/;
+ 727  CO2_intensity(t) = CO2_total(t) / max(ProdTot(t), ep);
+ 728   
+ 729  Display ProdTot, OffgasProd, OffgasFlared, ETS_cost, CO2_intensity;
 
 
-COMPILATION TIME     =        0.015 SECONDS      3 MB  39.1.1 dbf03b78 WEX-WEI
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 2
+COMPILATION TIME     =        0.000 SECONDS      3 MB  39.1.1 dbf03b78 WEX-WEI
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 2
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
-Equation Listing    SOLVE FeMn_SiMn_Opt Using LP From line 653
+Equation Listing    SOLVE FeMn_SiMn_Opt Using LP From line 651
 
 
 ---- dem_FeMn  =G=  
@@ -1296,11 +1293,11 @@ REMAINING 27 ENTRIES SKIPPED
 
 obj..  - 500*bSinter(t1) - 500*bSinter(t2) - 500*bSinter(t3) - 500*bSinter(t4) - 500*bSinter(t5) - 500*bSinter(t6) - 500*bSinter(t7) - 500*bSinter(t8) - 500*bSinter(t9) - 500*bSinter(t10) - 500*bSinter(t11) - 500*bSinter(t12) - 500*bSinter(t13) - 500*bSinter(t14) - 500*bSinter(t15) - 500*bSinter(t16) - 500*bSinter(t17) - 500*bSinter(t18) - 500*bSinter(t19) - 500*bSinter(t20) - 500*bSinter(t21) - 500*bSinter(t22) - 500*bSinter(t23) - 500*bSinter(t24) - 500*bSinter(t25) - 500*bSinter(t26) - 500*bSinter(t27) - 500*bSinter(t28) - 500*bSinter(t29) - 500*bSinter(t30) - 100*uOre(t1) - 100*uOre(t2) - 100*uOre(t3) - 100*uOre(t4) - 100*uOre(t5) - 100*uOre(t6) - 100*uOre(t7) - 100*uOre(t8) - 100*uOre(t9) - 100*uOre(t10) - 100*uOre(t11) - 100*uOre(t12) - 100*uOre(t13) - 100*uOre(t14) - 100*uOre(t15) - 100*uOre(t16) - 100*uOre(t17) - 100*uOre(t18) - 100*uOre(t19) - 100*uOre(t20) - 100*uOre(t21) - 100*uOre(t22) - 100*uOre(t23) - 100*uOre(t24) - 100*uOre(t25) - 100*uOre(t26) - 100*uOre(t27) - 100*uOre(t28) - 100*uOre(t29) - 100*uOre(t30) - 50*bQuartz(s1,t1) - 50*bQuartz(s1,t2) - 50*bQuartz(s1,t3) - 50*bQuartz(s1,t4) - 50*bQuartz(s1,t5) - 50*bQuartz(s1,t6) - 50*bQuartz(s1,t7) - 50*bQuartz(s1,t8) - 50*bQuartz(s1,t9) - 50*bQuartz(s1,t10) - 50*bQuartz(s1,t11) - 50*bQuartz(s1,t12) - 50*bQuartz(s1,t13) - 50*bQuartz(s1,t14) - 50*bQuartz(s1,t15) - 50*bQuartz(s1,t16) - 50*bQuartz(s1,t17) - 50*bQuartz(s1,t18) - 50*bQuartz(s1,t19) - 50*bQuartz(s1,t20) - 50*bQuartz(s1,t21) - 50*bQuartz(s1,t22) - 50*bQuartz(s1,t23) - 50*bQuartz(s1,t24) - 50*bQuartz(s1,t25) - 50*bQuartz(s1,t26) - 50*bQuartz(s1,t27) - 50*bQuartz(s1,t28) - 50*bQuartz(s1,t29) - 50*bQuartz(s1,t30) - 50*bQuartz(s2,t1) - 50*bQuartz(s2,t2) - 50*bQuartz(s2,t3) - 50*bQuartz(s2,t4) - 50*bQuartz(s2,t5) - 50*bQuartz(s2,t6) - 50*bQuartz(s2,t7) - 50*bQuartz(s2,t8) - 50*bQuartz(s2,t9) - 50*bQuartz(s2,t10) - 50*bQuartz(s2,t11) - 50*bQuartz(s2,t12) - 50*bQuartz(s2,t13) - 50*bQuartz(s2,t14) - 50*bQuartz(s2,t15) - 50*bQuartz(s2,t16) - 50*bQuartz(s2,t17) - 50*bQuartz(s2,t18) - 50*bQuartz(s2,t19) - 50*bQuartz(s2,t20) - 50*bQuartz(s2,t21) - 50*bQuartz(s2,t22) - 50*bQuartz(s2,t23) - 50*bQuartz(s2,t24) - 50*bQuartz(s2,t25) - 50*bQuartz(s2,t26) - 50*bQuartz(s2,t27) - 50*bQuartz(s2,t28) - 50*bQuartz(s2,t29) - 50*bQuartz(s2,t30) - 250*bSi(s1,t1) - 250*bSi(s1,t2) - 250*bSi(s1,t3) - 250*bSi(s1,t4) - 250*bSi(s1,t5) - 250*bSi(s1,t6) - 250*bSi(s1,t7) - 250*bSi(s1,t8) - 250*bSi(s1,t9) - 250*bSi(s1,t10) - 250*bSi(s1,t11) - 250*bSi(s1,t12) - 250*bSi(s1,t13) - 250*bSi(s1,t14) - 250*bSi(s1,t15) - 250*bSi(s1,t16) - 250*bSi(s1,t17) - 250*bSi(s1,t18) - 250*bSi(s1,t19) - 250*bSi(s1,t20) - 250*bSi(s1,t21) - 250*bSi(s1,t22) - 250*bSi(s1,t23) - 250*bSi(s1,t24) - 250*bSi(s1,t25) - 250*bSi(s1,t26) - 250*bSi(s1,t27) - 250*bSi(s1,t28) - 250*bSi(s1,t29) - 250*bSi(s1,t30) - 250*bSi(s2,t1) - 250*bSi(s2,t2) - 250*bSi(s2,t3) - 250*bSi(s2,t4) - 250*bSi(s2,t5) - 250*bSi(s2,t6) - 250*bSi(s2,t7) - 250*bSi(s2,t8) - 250*bSi(s2,t9) - 250*bSi(s2,t10) - 250*bSi(s2,t11) - 250*bSi(s2,t12) - 250*bSi(s2,t13) - 250*bSi(s2,t14) - 250*bSi(s2,t15) - 250*bSi(s2,t16) - 250*bSi(s2,t17) - 250*bSi(s2,t18) - 250*bSi(s2,t19) - 250*bSi(s2,t20) - 250*bSi(s2,t21) - 250*bSi(s2,t22) - 250*bSi(s2,t23) - 250*bSi(s2,t24) - 250*bSi(s2,t25) - 250*bSi(s2,t26) - 250*bSi(s2,t27) - 250*bSi(s2,t28) - 250*bSi(s2,t29) - 250*bSi(s2,t30) - 0.01*eSAF(s1,t1) - 0.01*eSAF(s1,t2) - 0.01*eSAF(s1,t3) - 0.01*eSAF(s1,t4) - 0.01*eSAF(s1,t5) - 0.01*eSAF(s1,t6) - 0.01*eSAF(s1,t7) - 0.01*eSAF(s1,t8) - 0.01*eSAF(s1,t9) - 0.01*eSAF(s1,t10) - 0.01*eSAF(s1,t11) - 0.01*eSAF(s1,t12) - 0.01*eSAF(s1,t13) - 0.01*eSAF(s1,t14) - 0.01*eSAF(s1,t15) - 0.01*eSAF(s1,t16) - 0.01*eSAF(s1,t17) - 0.01*eSAF(s1,t18) - 0.01*eSAF(s1,t19) - 0.01*eSAF(s1,t20) - 0.01*eSAF(s1,t21) - 0.01*eSAF(s1,t22) - 0.01*eSAF(s1,t23) - 0.01*eSAF(s1,t24) - 0.01*eSAF(s1,t25) - 0.01*eSAF(s1,t26) - 0.01*eSAF(s1,t27) - 0.01*eSAF(s1,t28) - 0.01*eSAF(s1,t29) - 0.01*eSAF(s1,t30) - 0.01*eSAF(s2,t1) - 0.01*eSAF(s2,t2) - 0.01*eSAF(s2,t3) - 0.01*eSAF(s2,t4) - 0.01*eSAF(s2,t5) - 0.01*eSAF(s2,t6) - 0.01*eSAF(s2,t7) - 0.01*eSAF(s2,t8) - 0.01*eSAF(s2,t9) - 0.01*eSAF(s2,t10) - 0.01*eSAF(s2,t11) - 0.01*eSAF(s2,t12) - 0.01*eSAF(s2,t13) - 0.01*eSAF(s2,t14) - 0.01*eSAF(s2,t15) - 0.01*eSAF(s2,t16) - 0.01*eSAF(s2,t17) - 0.01*eSAF(s2,t18) - 0.01*eSAF(s2,t19) - 0.01*eSAF(s2,t20) - 0.01*eSAF(s2,t21) - 0.01*eSAF(s2,t22) - 0.01*eSAF(s2,t23) - 0.01*eSAF(s2,t24) - 0.01*eSAF(s2,t25) - 0.01*eSAF(s2,t26) - 0.01*eSAF(s2,t27) - 0.01*eSAF(s2,t28) - 0.01*eSAF(s2,t29) - 0.01*eSAF(s2,t30) - 0.01*eSint(t1) - 0.01*eSint(t2) - 0.01*eSint(t3) - 0.01*eSint(t4) - 0.01*eSint(t5) - 0.01*eSint(t6) - 0.01*eSint(t7) - 0.01*eSint(t8) - 0.01*eSint(t9) - 0.01*eSint(t10) - 0.01*eSint(t11) - 0.01*eSint(t12) - 0.01*eSint(t13) - 0.01*eSint(t14) - 0.01*eSint(t15) - 0.01*eSint(t16) - 0.01*eSint(t17) - 0.01*eSint(t18) - 0.01*eSint(t19) - 0.01*eSint(t20) - 0.01*eSint(t21) - 0.01*eSint(t22) - 0.01*eSint(t23) - 0.01*eSint(t24) - 0.01*eSint(t25) - 0.01*eSint(t26) - 0.01*eSint(t27) - 0.01*eSint(t28) - 0.01*eSint(t29) - 0.01*eSint(t30) - 500*uSAF(s1,t1,oil) - 450*uSAF(s1,t1,biooil) - 120*uSAF(s1,t1,woodchips) - 300*uSAF(s1,t1,coke) - 500*uSAF(s1,t1,COgas) - 2000*uSAF(s1,t1,hydrogen) - 150*uSAF(s1,t1,natgas) - 130*uSAF(s1,t1,biogas) - 400*uSAF(s1,t1,biochar) - 500*uSAF(s1,t2,oil) - 450*uSAF(s1,t2,biooil) - 120*uSAF(s1,t2,woodchips) - 300*uSAF(s1,t2,coke) - 500*uSAF(s1,t2,COgas) - 2000*uSAF(s1,t2,hydrogen) - 150*uSAF(s1,t2,natgas) - 130*uSAF(s1,t2,biogas) - 400*uSAF(s1,t2,biochar) - 500*uSAF(s1,t3,oil) - 450*uSAF(s1,t3,biooil) - 120*uSAF(s1,t3,woodchips) - 300*uSAF(s1,t3,coke) - 500*uSAF(s1,t3,COgas) - 2000*uSAF(s1,t3,hydrogen) - 150*uSAF(s1,t3,natgas) - 130*uSAF(s1,t3,biogas) - 400*uSAF(s1,t3,biochar) - 500*uSAF(s1,t4,oil) - 450*uSAF(s1,t4,biooil) - 120*uSAF(s1,t4,woodchips) - 300*uSAF(s1,t4,coke) - 500*uSAF(s1,t4,COgas) - 2000*uSAF(s1,t4,hydrogen) - 150*uSAF(s1,t4,natgas) - 130*uSAF(s1,t4,biogas) - 400*uSAF(s1,t4,biochar) - 500*uSAF(s1,t5,oil) - 450*uSAF(s1,t5,biooil) - 120*uSAF(s1,t5,woodchips) - 300*uSAF(s1,t5,coke) - 500*uSAF(s1,t5,COgas) - 2000*uSAF(s1,t5,hydrogen) - 150*uSAF(s1,t5,natgas) - 130*uSAF(s1,t5,biogas) - 400*uSAF(s1,t5,biochar) - 500*uSAF(s1,t6,oil) - 450*uSAF(s1,t6,biooil) - 120*uSAF(s1,t6,woodchips) - 300*uSAF(s1,t6,coke) - 500*uSAF(s1,t6,COgas) - 2000*uSAF(s1,t6,hydrogen) - 150*uSAF(s1,t6,natgas) - 130*uSAF(s1,t6,biogas) - 400*uSAF(s1,t6,biochar) - 500*uSAF(s1,t7,oil) - 450*uSAF(s1,t7,biooil) - 120*uSAF(s1,t7,woodchips) - 300*uSAF(s1,t7,coke) - 500*uSAF(s1,t7,COgas) - 2000*uSAF(s1,t7,hydrogen) - 150*uSAF(s1,t7,natgas) - 130*uSAF(s1,t7,biogas) - 400*uSAF(s1,t7,biochar) - 500*uSAF(s1,t8,oil) - 450*uSAF(s1,t8,biooil) - 120*uSAF(s1,t8,woodchips) - 300*uSAF(s1,t8,coke) - 500*uSAF(s1,t8,COgas) - 2000*uSAF(s1,t8,hydrogen) - 150*uSAF(s1,t8,natgas) - 130*uSAF(s1,t8,biogas) - 400*uSAF(s1,t8,biochar) - 500*uSAF(s1,t9,oil) - 450*uSAF(s1,t9,biooil) - 120*uSAF(s1,t9,woodchips) - 300*uSAF(s1,t9,coke) - 500*uSAF(s1,t9,COgas) - 2000*uSAF(s1,t9,hydrogen) - 150*uSAF(s1,t9,natgas) - 130*uSAF(s1,t9,biogas) - 400*uSAF(s1,t9,biochar) - 500*uSAF(s1,t10,oil) - 450*uSAF(s1,t10,biooil) - 120*uSAF(s1,t10,woodchips) - 300*uSAF(s1,t10,coke) - 500*uSAF(s1,t10,COgas) - 2000*uSAF(s1,t10,hydrogen) - 150*uSAF(s1,t10,natgas) - 130*uSAF(s1,t10,biogas) - 400*uSAF(s1,t10,biochar) - 500*uSAF(s1,t11,oil) - 450*uSAF(s1,t11,biooil) - 120*uSAF(s1,t11,woodchips) - 300*uSAF(s1,t11,coke) - 500*uSAF(s1,t11,COgas) - 2000*uSAF(s1,t11,hydrogen) - 150*uSAF(s1,t11,natgas) - 130*uSAF(s1,t11,biogas) - 400*uSAF(s1,t11,biochar) - 500*uSAF(s1,t12,oil) - 450*uSAF(s1,t12,biooil) - 120*uSAF(s1,t12,woodchips) - 300*uSAF(s1,t12,coke) - 500*uSAF(s1,t12,COgas) - 2000*uSAF(s1,t12,hydrogen) - 150*uSAF(s1,t12,natgas) - 130*uSAF(s1,t12,biogas) - 400*uSAF(s1,t12,biochar) - 500*uSAF(s1,t13,oil) - 450*uSAF(s1,t13,biooil) - 120*uSAF(s1,t13,woodchips) - 300*uSAF(s1,t13,coke) - 500*uSAF(s1,t13,COgas) - 2000*uSAF(s1,t13,hydrogen) - 150*uSAF(s1,t13,natgas) - 130*uSAF(s1,t13,biogas) - 400*uSAF(s1,t13,biochar) - 500*uSAF(s1,t14,oil) - 450*uSAF(s1,t14,biooil) - 120*uSAF(s1,t14,woodchips) - 300*uSAF(s1,t14,coke) - 500*uSAF(s1,t14,COgas) - 2000*uSAF(s1,t14,hydrogen) - 150*uSAF(s1,t14,natgas) - 130*uSAF(s1,t14,biogas) - 400*uSAF(s1,t14,biochar) - 500*uSAF(s1,t15,oil) - 450*uSAF(s1,t15,biooil) - 120*uSAF(s1,t15,woodchips) - 300*uSAF(s1,t15,coke) - 500*uSAF(s1,t15,COgas) - 2000*uSAF(s1,t15,hydrogen) - 150*uSAF(s1,t15,natgas) - 130*uSAF(s1,t15,biogas) - 400*uSAF(s1,t15,biochar) - 500*uSAF(s1,t16,oil) - 450*uSAF(s1,t16,biooil) - 120*uSAF(s1,t16,woodchips) - 300*uSAF(s1,t16,coke) - 500*uSAF(s1,t16,COgas) - 2000*uSAF(s1,t16,hydrogen) - 150*uSAF(s1,t16,natgas) - 130*uSAF(s1,t16,biogas) - 400*uSAF(s1,t16,biochar) - 500*uSAF(s1,t17,oil) - 450*uSAF(s1,t17,biooil) - 120*uSAF(s1,t17,woodchips) - 300*uSAF(s1,t17,coke) - 500*uSAF(s1,t17,COgas) - 2000*uSAF(s1,t17,hydrogen) - 150*uSAF(s1,t17,natgas) - 130*uSAF(s1,t17,biogas) - 400*uSAF(s1,t17,biochar) - 500*uSAF(s1,t18,oil) - 450*uSAF(s1,t18,biooil) - 120*uSAF(s1,t18,woodchips) - 300*uSAF(s1,t18,coke) - 500*uSAF(s1,t18,COgas) - 2000*uSAF(s1,t18,hydrogen) - 150*uSAF(s1,t18,natgas) - 130*uSAF(s1,t18,biogas) - 400*uSAF(s1,t18,biochar) - 500*uSAF(s1,t19,oil) - 450*uSAF(s1,t19,biooil) - 120*uSAF(s1,t19,woodchips) - 300*uSAF(s1,t19,coke) - 500*uSAF(s1,t19,COgas) - 2000*uSAF(s1,t19,hydrogen) - 150*uSAF(s1,t19,natgas) - 130*uSAF(s1,t19,biogas) - 400*uSAF(s1,t19,biochar) - 500*uSAF(s1,t20,oil) - 450*uSAF(s1,t20,biooil) - 120*uSAF(s1,t20,woodchips) - 300*uSAF(s1,t20,coke) - 500*uSAF(s1,t20,COgas) - 2000*uSAF(s1,t20,hydrogen) - 150*uSAF(s1,t20,natgas) - 130*uSAF(s1,t20,biogas) - 400*uSAF(s1,t20,biochar) - 500*uSAF(s1,t21,oil) - 450*uSAF(s1,t21,biooil) - 120*uSAF(s1,t21,woodchips) - 300*uSAF(s1,t21,coke) - 500*uSAF(s1,t21,COgas) - 2000*uSAF(s1,t21,hydrogen) - 150*uSAF(s1,t21,natgas) - 130*uSAF(s1,t21,biogas) - 400*uSAF(s1,t21,biochar) - 500*uSAF(s1,t22,oil) - 450*uSAF(s1,t22,biooil) - 120*uSAF(s1,t22,woodchips) - 300*uSAF(s1,t22,coke) - 500*uSAF(s1,t22,COgas) - 2000*uSAF(s1,t22,hydrogen) - 150*uSAF(s1,t22,natgas) - 130*uSAF(s1,t22,biogas) - 400*uSAF(s1,t22,biochar) - 500*uSAF(s1,t23,oil) - 450*uSAF(s1,t23,biooil) - 120*uSAF(s1,t23,woodchips) - 300*uSAF(s1,t23,coke) - 500*uSAF(s1,t23,COgas) - 2000*uSAF(s1,t23,hydrogen) - 150*uSAF(s1,t23,natgas) - 130*uSAF(s1,t23,biogas) - 400*uSAF(s1,t23,biochar) - 500*uSAF(s1,t24,oil) - 450*uSAF(s1,t24,biooil) - 120*uSAF(s1,t24,woodchips) - 300*uSAF(s1,t24,coke) - 500*uSAF(s1,t24,COgas) - 2000*uSAF(s1,t24,hydrogen) - 150*uSAF(s1,t24,natgas) - 130*uSAF(s1,t24,biogas) - 400*uSAF(s1,t24,biochar) - 500*uSAF(s1,t25,oil) - 450*uSAF(s1,t25,biooil) - 120*uSAF(s1,t25,woodchips) - 300*uSAF(s1,t25,coke) - 500*uSAF(s1,t25,COgas) - 2000*uSAF(s1,t25,hydrogen) - 150*uSAF(s1,t25,natgas) - 130*uSAF(s1,t25,biogas) - 400*uSAF(s1,t25,biochar) - 500*uSAF(s1,t26,oil) - 450*uSAF(s1,t26,biooil) - 120*uSAF(s1,t26,woodchips) - 300*uSAF(s1,t26,coke) - 500*uSAF(s1,t26,COgas) - 2000*uSAF(s1,t26,hydrogen) - 150*uSAF(s1,t26,natgas) - 130*uSAF(s1,t26,biogas) - 400*uSAF(s1,t26,biochar) - 500*uSAF(s1,t27,oil) - 450*uSAF(s1,t27,biooil) - 120*uSAF(s1,t27,woodchips) - 300*uSAF(s1,t27,coke) - 500*uSAF(s1,t27,COgas) - 2000*uSAF(s1,t27,hydrogen) - 150*uSAF(s1,t27,natgas) - 130*uSAF(s1,t27,biogas) - 400*uSAF(s1,t27,biochar) - 500*uSAF(s1,t28,oil) - 450*uSAF(s1,t28,biooil) - 120*uSAF(s1,t28,woodchips) - 300*uSAF(s1,t28,coke) - 500*uSAF(s1,t28,COgas) - 2000*uSAF(s1,t28,hydrogen) - 150*uSAF(s1,t28,natgas) - 130*uSAF(s1,t28,biogas) - 400*uSAF(s1,t28,biochar) - 500*uSAF(s1,t29,oil) - 450*uSAF(s1,t29,biooil) - 120*uSAF(s1,t29,woodchips) - 300*uSAF(s1,t29,coke) - 500*uSAF(s1,t29,COgas) - 2000*uSAF(s1,t29,hydrogen) - 150*uSAF(s1,t29,natgas) - 130*uSAF(s1,t29,biogas) - 400*uSAF(s1,t29,biochar) - 500*uSAF(s1,t30,oil) - 450*uSAF(s1,t30,biooil) - 120*uSAF(s1,t30,woodchips) - 300*uSAF(s1,t30,coke) - 500*uSAF(s1,t30,COgas) - 2000*uSAF(s1,t30,hydrogen) - 150*uSAF(s1,t30,natgas) - 130*uSAF(s1,t30,biogas) - 400*uSAF(s1,t30,biochar) - 500*uSAF(s2,t1,oil) - 450*uSAF(s2,t1,biooil) - 120*uSAF(s2,t1,woodchips) - 300*uSAF(s2,t1,coke) - 500*uSAF(s2,t1,COgas) - 2000*uSAF(s2,t1,hydrogen) - 150*uSAF(s2,t1,natgas) - 130*uSAF(s2,t1,biogas) - 400*uSAF(s2,t1,biochar) - 500*uSAF(s2,t2,oil) - 450*uSAF(s2,t2,biooil) - 120*uSAF(s2,t2,woodchips) - 300*uSAF(s2,t2,coke) - 500*uSAF(s2,t2,COgas) - 2000*uSAF(s2,t2,hydrogen) - 150*uSAF(s2,t2,natgas) - 130*uSAF(s2,t2,biogas) - 400*uSAF(s2,t2,biochar) - 500*uSAF(s2,t3,oil) - 450*uSAF(s2,t3,biooil) - 120*uSAF(s2,t3,woodchips) - 300*uSAF(s2,t3,coke) - 500*uSAF(s2,t3,COgas) - 2000*uSAF(s2,t3,hydrogen) - 150*uSAF(s2,t3,natgas) - 130*uSAF(s2,t3,biogas) - 400*uSAF(s2,t3,biochar) - 500*uSAF(s2,t4,oil) - 450*uSAF(s2,t4,biooil) - 120*uSAF(s2,t4,woodchips) - 300*uSAF(s2,t4,coke) - 500*uSAF(s2,t4,COgas) - 2000*uSAF(s2,t4,hydrogen) - 150*uSAF(s2,t4,natgas) - 130*uSAF(s2,t4,biogas) - 400*uSAF(s2,t4,biochar) - 500*uSAF(s2,t5,oil) - 450*uSAF(s2,t5,biooil) - 120*uSAF(s2,t5,woodchips) - 300*uSAF(s2,t5,coke) - 500*uSAF(s2,t5,COgas) - 2000*uSAF(s2,t5,hydrogen) - 150*uSAF(s2,t5,natgas) - 130*uSAF(s2,t5,biogas) - 400*uSAF(s2,t5,biochar) - 500*uSAF(s2,t6,oil) - 450*uSAF(s2,t6,biooil) - 120*uSAF(s2,t6,woodchips) - 300*uSAF(s2,t6,coke) - 500*uSAF(s2,t6,COgas) - 2000*uSAF(s2,t6,hydrogen) - 150*uSAF(s2,t6,natgas) - 130*uSAF(s2,t6,biogas) - 400*uSAF(s2,t6,biochar) - 500*uSAF(s2,t7,oil) - 450*uSAF(s2,t7,biooil) - 120*uSAF(s2,t7,woodchips) - 300*uSAF(s2,t7,coke) - 500*uSAF(s2,t7,COgas) - 2000*uSAF(s2,t7,hydrogen) - 150*uSAF(s2,t7,natgas) - 130*uSAF(s2,t7,biogas) - 400*uSAF(s2,t7,biochar) - 500*uSAF(s2,t8,oil) - 450*uSAF(s2,t8,biooil) - 120*uSAF(s2,t8,woodchips) - 300*uSAF(s2,t8,coke) - 500*uSAF(s2,t8,COgas) - 2000*uSAF(s2,t8,hydrogen) - 150*uSAF(s2,t8,natgas) - 130*uSAF(s2,t8,biogas) - 400*uSAF(s2,t8,biochar) - 500*uSAF(s2,t9,oil) - 450*uSAF(s2,t9,biooil) - 120*uSAF(s2,t9,woodchips) - 300*uSAF(s2,t9,coke) - 500*uSAF(s2,t9,COgas) - 2000*uSAF(s2,t9,hydrogen) - 150*uSAF(s2,t9,natgas) - 130*uSAF(s2,t9,biogas) - 400*uSAF(s2,t9,biochar) - 500*uSAF(s2,t10,oil) - 450*uSAF(s2,t10,biooil) - 120*uSAF(s2,t10,woodchips) - 300*uSAF(s2,t10,coke) - 500*uSAF(s2,t10,COgas) - 2000*uSAF(s2,t10,hydrogen) - 150*uSAF(s2,t10,natgas) - 130*uSAF(s2,t10,biogas) - 400*uSAF(s2,t10,biochar) - 500*uSAF(s2,t11,oil) - 450*uSAF(s2,t11,biooil) - 120*uSAF(s2,t11,woodchips) - 300*uSAF(s2,t11,coke) - 500*uSAF(s2,t11,COgas) - 2000*uSAF(s2,t11,hydrogen) - 150*uSAF(s2,t11,natgas) - 130*uSAF(s2,t11,biogas) - 400*uSAF(s2,t11,biochar) - 500*uSAF(s2,t12,oil) - 450*uSAF(s2,t12,biooil) - 120*uSAF(s2,t12,woodchips) - 300*uSAF(s2,t12,coke) - 500*uSAF(s2,t12,COgas) - 2000*uSAF(s2,t12,hydrogen) - 150*uSAF(s2,t12,natgas) - 130*uSAF(s2,t12,biogas) - 400*uSAF(s2,t12,biochar) - 500*uSAF(s2,t13,oil) - 450*uSAF(s2,t13,biooil) - 120*uSAF(s2,t13,woodchips) - 300*uSAF(s2,t13,coke) - 500*uSAF(s2,t13,COgas) - 2000*uSAF(s2,t13,hydrogen) - 150*uSAF(s2,t13,natgas) - 130*uSAF(s2,t13,biogas) - 400*uSAF(s2,t13,biochar) - 500*uSAF(s2,t14,oil) - 450*uSAF(s2,t14,biooil) - 120*uSAF(s2,t14,woodchips) - 300*uSAF(s2,t14,coke) - 500*uSAF(s2,t14,COgas) - 2000*uSAF(s2,t14,hydrogen) - 150*uSAF(s2,t14,natgas) - 130*uSAF(s2,t14,biogas) - 400*uSAF(s2,t14,biochar) - 500*uSAF(s2,t15,oil) - 450*uSAF(s2,t15,biooil) - 120*uSAF(s2,t15,woodchips) - 300*uSAF(s2,t15,coke) - 500*uSAF(s2,t15,COgas) - 2000*uSAF(s2,t15,hydrogen) - 150*uSAF(s2,t15,natgas) - 130*uSAF(s2,t15,biogas) - 400*uSAF(s2,t15,biochar) - 500*uSAF(s2,t16,oil) - 450*uSAF(s2,t16,biooil) - 120*uSAF(s2,t16,woodchips) - 300*uSAF(s2,t16,coke) - 500*uSAF(s2,t16,COgas) - 2000*uSAF(s2,t16,hydrogen) - 150*uSAF(s2,t16,natgas) - 130*uSAF(s2,t16,biogas) - 400*uSAF(s2,t16,biochar) - 500*uSAF(s2,t17,oil) - 450*uSAF(s2,t17,biooil) - 120*uSAF(s2,t17,woodchips) - 300*uSAF(s2,t17,coke) - 500*uSAF(s2,t17,COgas) - 2000*uSAF(s2,t17,hydrogen) - 150*uSAF(s2,t17,natgas) - 130*uSAF(s2,t17,biogas) - 400*uSAF(s2,t17,biochar) - 500*uSAF(s2,t18,oil) - 450*uSAF(s2,t18,biooil) - 120*uSAF(s2,t18,woodchips) - 300*uSAF(s2,t18,coke) - 500*uSAF(s2,t18,COgas) - 2000*uSAF(s2,t18,hydrogen) - 150*uSAF(s2,t18,natgas) - 130*uSAF(s2,t18,biogas) - 400*uSAF(s2,t18,biochar) - 500*uSAF(s2,t19,oil) - 450*uSAF(s2,t19,biooil) - 120*uSAF(s2,t19,woodchips) - 300*uSAF(s2,t19,coke) - 500*uSAF(s2,t19,COgas) - 2000*uSAF(s2,t19,hydrogen) - 150*uSAF(s2,t19,natgas) - 130*uSAF(s2,t19,biogas) - 400*uSAF(s2,t19,biochar) - 500*uSAF(s2,t20,oil) - 450*uSAF(s2,t20,biooil) - 120*uSAF(s2,t20,woodchips) - 300*uSAF(s2,t20,coke) - 500*uSAF(s2,t20,COgas) - 2000*uSAF(s2,t20,hydrogen) - 150*uSAF(s2,t20,natgas) - 130*uSAF(s2,t20,biogas) - 400*uSAF(s2,t20,biochar) - 500*uSAF(s2,t21,oil) - 450*uSAF(s2,t21,biooil) - 120*uSAF(s2,t21,woodchips) - 300*uSAF(s2,t21,coke) - 500*uSAF(s2,t21,COgas) - 2000*uSAF(s2,t21,hydrogen) - 150*uSAF(s2,t21,natgas) - 130*uSAF(s2,t21,biogas) - 400*uSAF(s2,t21,biochar) - 500*uSAF(s2,t22,oil) - 450*uSAF(s2,t22,biooil) - 120*uSAF(s2,t22,woodchips) - 300*uSAF(s2,t22,coke) - 500*uSAF(s2,t22,COgas) - 2000*uSAF(s2,t22,hydrogen) - 150*uSAF(s2,t22,natgas) - 130*uSAF(s2,t22,biogas) - 400*uSAF(s2,t22,biochar) - 500*uSAF(s2,t23,oil) - 450*uSAF(s2,t23,biooil) - 120*uSAF(s2,t23,woodchips) - 300*uSAF(s2,t23,coke) - 500*uSAF(s2,t23,COgas) - 2000*uSAF(s2,t23,hydrogen) - 150*uSAF(s2,t23,natgas) - 130*uSAF(s2,t23,biogas) - 400*uSAF(s2,t23,biochar) - 500*uSAF(s2,t24,oil) - 450*uSAF(s2,t24,biooil) - 120*uSAF(s2,t24,woodchips) - 300*uSAF(s2,t24,coke) - 500*uSAF(s2,t24,COgas) - 2000*uSAF(s2,t24,hydrogen) - 150*uSAF(s2,t24,natgas) - 130*uSAF(s2,t24,biogas) - 400*uSAF(s2,t24,biochar) - 500*uSAF(s2,t25,oil) - 450*uSAF(s2,t25,biooil) - 120*uSAF(s2,t25,woodchips) - 300*uSAF(s2,t25,coke) - 500*uSAF(s2,t25,COgas) - 2000*uSAF(s2,t25,hydrogen) - 150*uSAF(s2,t25,natgas) - 130*uSAF(s2,t25,biogas) - 400*uSAF(s2,t25,biochar) - 500*uSAF(s2,t26,oil) - 450*uSAF(s2,t26,biooil) - 120*uSAF(s2,t26,woodchips) - 300*uSAF(s2,t26,coke) - 500*uSAF(s2,t26,COgas) - 2000*uSAF(s2,t26,hydrogen) - 150*uSAF(s2,t26,natgas) - 130*uSAF(s2,t26,biogas) - 400*uSAF(s2,t26,biochar) - 500*uSAF(s2,t27,oil) - 450*uSAF(s2,t27,biooil) - 120*uSAF(s2,t27,woodchips) - 300*uSAF(s2,t27,coke) - 500*uSAF(s2,t27,COgas) - 2000*uSAF(s2,t27,hydrogen) - 150*uSAF(s2,t27,natgas) - 130*uSAF(s2,t27,biogas) - 400*uSAF(s2,t27,biochar) - 500*uSAF(s2,t28,oil) - 450*uSAF(s2,t28,biooil) - 120*uSAF(s2,t28,woodchips) - 300*uSAF(s2,t28,coke) - 500*uSAF(s2,t28,COgas) - 2000*uSAF(s2,t28,hydrogen) - 150*uSAF(s2,t28,natgas) - 130*uSAF(s2,t28,biogas) - 400*uSAF(s2,t28,biochar) - 500*uSAF(s2,t29,oil) - 450*uSAF(s2,t29,biooil) - 120*uSAF(s2,t29,woodchips) - 300*uSAF(s2,t29,coke) - 500*uSAF(s2,t29,COgas) - 2000*uSAF(s2,t29,hydrogen) - 150*uSAF(s2,t29,natgas) - 130*uSAF(s2,t29,biogas) - 400*uSAF(s2,t29,biochar) - 500*uSAF(s2,t30,oil) - 450*uSAF(s2,t30,biooil) - 120*uSAF(s2,t30,woodchips) - 300*uSAF(s2,t30,coke) - 500*uSAF(s2,t30,COgas) - 2000*uSAF(s2,t30,hydrogen) - 150*uSAF(s2,t30,natgas) - 130*uSAF(s2,t30,biogas) - 400*uSAF(s2,t30,biochar) - 500*uSAF_SiMn(s1,t1,oil) - 450*uSAF_SiMn(s1,t1,biooil) - 120*uSAF_SiMn(s1,t1,woodchips) - 300*uSAF_SiMn(s1,t1,coke) - 500*uSAF_SiMn(s1,t1,COgas) - 2000*uSAF_SiMn(s1,t1,hydrogen) - 150*uSAF_SiMn(s1,t1,natgas) - 130*uSAF_SiMn(s1,t1,biogas) - 400*uSAF_SiMn(s1,t1,biochar) - 500*uSAF_SiMn(s1,t2,oil) - 450*uSAF_SiMn(s1,t2,biooil) - 120*uSAF_SiMn(s1,t2,woodchips) - 300*uSAF_SiMn(s1,t2,coke) - 500*uSAF_SiMn(s1,t2,COgas) - 2000*uSAF_SiMn(s1,t2,hydrogen) - 150*uSAF_SiMn(s1,t2,natgas) - 130*uSAF_SiMn(s1,t2,biogas) - 400*uSAF_SiMn(s1,t2,biochar) - 500*uSAF_SiMn(s1,t3,oil) - 450*uSAF_SiMn(s1,t3,biooil) - 120*uSAF_SiMn(s1,t3,woodchips) - 300*uSAF_SiMn(s1,t3,coke) - 500*uSAF_SiMn(s1,t3,COgas) - 2000*uSAF_SiMn(s1,t3,hydrogen) - 150*uSAF_SiMn(s1,t3,natgas) - 130*uSAF_SiMn(s1,t3,biogas) - 400*uSAF_SiMn(s1,t3,biochar) - 500*uSAF_SiMn(s1,t4,oil) - 450*uSAF_SiMn(s1,t4,biooil) - 120*uSAF_SiMn(s1,t4,woodchips) - 300*uSAF_SiMn(s1,t4,coke) - 500*uSAF_SiMn(s1,t4,COgas) - 2000*uSAF_SiMn(s1,t4,hydrogen) - 150*uSAF_SiMn(s1,t4,natgas) - 130*uSAF_SiMn(s1,t4,biogas) - 400*uSAF_SiMn(s1,t4,biochar) - 500*uSAF_SiMn(s1,t5,oil) - 450*uSAF_SiMn(s1,t5,biooil) - 120*uSAF_SiMn(s1,t5,woodchips) - 300*uSAF_SiMn(s1,t5,coke) - 500*uSAF_SiMn(s1,t5,COgas) - 2000*uSAF_SiMn(s1,t5,hydrogen) - 150*uSAF_SiMn(s1,t5,natgas) - 130*uSAF_SiMn(s1,t5,biogas) - 400*uSAF_SiMn(s1,t5,biochar) - 500*uSAF_SiMn(s1,t6,oil) - 450*uSAF_SiMn(s1,t6,biooil) - 120*uSAF_SiMn(s1,t6,woodchips) - 300*uSAF_SiMn(s1,t6,coke) - 500*uSAF_SiMn(s1,t6,COgas) - 2000*uSAF_SiMn(s1,t6,hydrogen) - 150*uSAF_SiMn(s1,t6,natgas) - 130*uSAF_SiMn(s1,t6,biogas) - 400*uSAF_SiMn(s1,t6,biochar) - 500*uSAF_SiMn(s1,t7,oil) - 450*uSAF_SiMn(s1,t7,biooil) - 120*uSAF_SiMn(s1,t7,woodchips) - 300*uSAF_SiMn(s1,t7,coke) - 500*uSAF_SiMn(s1,t7,COgas) - 2000*uSAF_SiMn(s1,t7,hydrogen) - 150*uSAF_SiMn(s1,t7,natgas) - 130*uSAF_SiMn(s1,t7,biogas) - 400*uSAF_SiMn(s1,t7,biochar) - 500*uSAF_SiMn(s1,t8,oil) - 450*uSAF_SiMn(s1,t8,biooil) - 120*uSAF_SiMn(s1,t8,woodchips) - 300*uSAF_SiMn(s1,t8,coke) - 500*uSAF_SiMn(s1,t8,COgas) - 2000*uSAF_SiMn(s1,t8,hydrogen) - 150*uSAF_SiMn(s1,t8,natgas) - 130*uSAF_SiMn(s1,t8,biogas) - 400*uSAF_SiMn(s1,t8,biochar) - 500*uSAF_SiMn(s1,t9,oil) - 450*uSAF_SiMn(s1,t9,biooil) - 120*uSAF_SiMn(s1,t9,woodchips) - 300*uSAF_SiMn(s1,t9,coke) - 500*uSAF_SiMn(s1,t9,COgas) - 2000*uSAF_SiMn(s1,t9,hydrogen) - 150*uSAF_SiMn(s1,t9,natgas) - 130*uSAF_SiMn(s1,t9,biogas) - 400*uSAF_SiMn(s1,t9,biochar) - 500*uSAF_SiMn(s1,t10,oil) - 450*uSAF_SiMn(s1,t10,biooil) - 120*uSAF_SiMn(s1,t10,woodchips) - 300*uSAF_SiMn(s1,t10,coke) - 500*uSAF_SiMn(s1,t10,COgas) - 2000*uSAF_SiMn(s1,t10,hydrogen) - 150*uSAF_SiMn(s1,t10,natgas) - 130*uSAF_SiMn(s1,t10,biogas) - 400*uSAF_SiMn(s1,t10,biochar) - 500*uSAF_SiMn(s1,t11,oil) - 450*uSAF_SiMn(s1,t11,biooil) - 120*uSAF_SiMn(s1,t11,woodchips) - 300*uSAF_SiMn(s1,t11,coke) - 500*uSAF_SiMn(s1,t11,COgas) - 2000*uSAF_SiMn(s1,t11,hydrogen) - 150*uSAF_SiMn(s1,t11,natgas) - 130*uSAF_SiMn(s1,t11,biogas) - 400*uSAF_SiMn(s1,t11,biochar) - 500*uSAF_SiMn(s1,t12,oil) - 450*uSAF_SiMn(s1,t12,biooil) - 120*uSAF_SiMn(s1,t12,woodchips) - 300*uSAF_SiMn(s1,t12,coke) - 500*uSAF_SiMn(s1,t12,COgas) - 2000*uSAF_SiMn(s1,t12,hydrogen) - 150*uSAF_SiMn(s1,t12,natgas) - 130*uSAF_SiMn(s1,t12,biogas) - 400*uSAF_SiMn(s1,t12,biochar) - 500*uSAF_SiMn(s1,t13,oil) - 450*uSAF_SiMn(s1,t13,biooil) - 120*uSAF_SiMn(s1,t13,woodchips) - 300*uSAF_SiMn(s1,t13,coke) - 500*uSAF_SiMn(s1,t13,COgas) - 2000*uSAF_SiMn(s1,t13,hydrogen) - 150*uSAF_SiMn(s1,t13,natgas) - 130*uSAF_SiMn(s1,t13,biogas) - 400*uSAF_SiMn(s1,t13,biochar) - 500*uSAF_SiMn(s1,t14,oil) - 450*uSAF_SiMn(s1,t14,biooil) - 120*uSAF_SiMn(s1,t14,woodchips) - 300*uSAF_SiMn(s1,t14,coke) - 500*uSAF_SiMn(s1,t14,COgas) - 2000*uSAF_SiMn(s1,t14,hydrogen) - 150*uSAF_SiMn(s1,t14,natgas) - 130*uSAF_SiMn(s1,t14,biogas) - 400*uSAF_SiMn(s1,t14,biochar) - 500*uSAF_SiMn(s1,t15,oil) - 450*uSAF_SiMn(s1,t15,biooil) - 120*uSAF_SiMn(s1,t15,woodchips) - 300*uSAF_SiMn(s1,t15,coke) - 500*uSAF_SiMn(s1,t15,COgas) - 2000*uSAF_SiMn(s1,t15,hydrogen) - 150*uSAF_SiMn(s1,t15,natgas) - 130*uSAF_SiMn(s1,t15,biogas) - 400*uSAF_SiMn(s1,t15,biochar) - 500*uSAF_SiMn(s1,t16,oil) - 450*uSAF_SiMn(s1,t16,biooil) - 120*uSAF_SiMn(s1,t16,woodchips) - 300*uSAF_SiMn(s1,t16,coke) - 500*uSAF_SiMn(s1,t16,COgas) - 2000*uSAF_SiMn(s1,t16,hydrogen) - 150*uSAF_SiMn(s1,t16,natgas) - 130*uSAF_SiMn(s1,t16,biogas) - 400*uSAF_SiMn(s1,t16,biochar) - 500*uSAF_SiMn(s1,t17,oil) - 450*uSAF_SiMn(s1,t17,biooil) - 120*uSAF_SiMn(s1,t17,woodchips) - 300*uSAF_SiMn(s1,t17,coke) - 500*uSAF_SiMn(s1,t17,COgas) - 2000*uSAF_SiMn(s1,t17,hydrogen) - 150*uSAF_SiMn(s1,t17,natgas) - 130*uSAF_SiMn(s1,t17,biogas) - 400*uSAF_SiMn(s1,t17,biochar) - 500*uSAF_SiMn(s1,t18,oil) - 450*uSAF_SiMn(s1,t18,biooil) - 120*uSAF_SiMn(s1,t18,woodchips) - 300*uSAF_SiMn(s1,t18,coke) - 500*uSAF_SiMn(s1,t18,COgas) - 2000*uSAF_SiMn(s1,t18,hydrogen) - 150*uSAF_SiMn(s1,t18,natgas) - 130*uSAF_SiMn(s1,t18,biogas) - 400*uSAF_SiMn(s1,t18,biochar) - 500*uSAF_SiMn(s1,t19,oil) - 450*uSAF_SiMn(s1,t19,biooil) - 120*uSAF_SiMn(s1,t19,woodchips) - 300*uSAF_SiMn(s1,t19,coke) - 500*uSAF_SiMn(s1,t19,COgas) - 2000*uSAF_SiMn(s1,t19,hydrogen) - 150*uSAF_SiMn(s1,t19,natgas) - 130*uSAF_SiMn(s1,t19,biogas) - 400*uSAF_SiMn(s1,t19,biochar) - 500*uSAF_SiMn(s1,t20,oil) - 450*uSAF_SiMn(s1,t20,biooil) - 120*uSAF_SiMn(s1,t20,woodchips) - 300*uSAF_SiMn(s1,t20,coke) - 500*uSAF_SiMn(s1,t20,COgas) - 2000*uSAF_SiMn(s1,t20,hydrogen) - 150*uSAF_SiMn(s1,t20,natgas) - 130*uSAF_SiMn(s1,t20,biogas) - 400*uSAF_SiMn(s1,t20,biochar) - 500*uSAF_SiMn(s1,t21,oil) - 450*uSAF_SiMn(s1,t21,biooil) - 120*uSAF_SiMn(s1,t21,woodchips) - 300*uSAF_SiMn(s1,t21,coke) - 500*uSAF_SiMn(s1,t21,COgas) - 2000*uSAF_SiMn(s1,t21,hydrogen) - 150*uSAF_SiMn(s1,t21,natgas) - 130*uSAF_SiMn(s1,t21,biogas) - 400*uSAF_SiMn(s1,t21,biochar) - 500*uSAF_SiMn(s1,t22,oil) - 450*uSAF_SiMn(s1,t22,biooil) - 120*uSAF_SiMn(s1,t22,woodchips) - 300*uSAF_SiMn(s1,t22,coke) - 500*uSAF_SiMn(s1,t22,COgas) - 2000*uSAF_SiMn(s1,t22,hydrogen) - 150*uSAF_SiMn(s1,t22,natgas) - 130*uSAF_SiMn(s1,t22,biogas) - 400*uSAF_SiMn(s1,t22,biochar) - 500*uSAF_SiMn(s1,t23,oil) - 450*uSAF_SiMn(s1,t23,biooil) - 120*uSAF_SiMn(s1,t23,woodchips) - 300*uSAF_SiMn(s1,t23,coke) - 500*uSAF_SiMn(s1,t23,COgas) - 2000*uSAF_SiMn(s1,t23,hydrogen) - 150*uSAF_SiMn(s1,t23,natgas) - 130*uSAF_SiMn(s1,t23,biogas) - 400*uSAF_SiMn(s1,t23,biochar) - 500*uSAF_SiMn(s1,t24,oil) - 450*uSAF_SiMn(s1,t24,biooil) - 120*uSAF_SiMn(s1,t24,woodchips) - 300*uSAF_SiMn(s1,t24,coke) - 500*uSAF_SiMn(s1,t24,COgas) - 2000*uSAF_SiMn(s1,t24,hydrogen) - 150*uSAF_SiMn(s1,t24,natgas) - 130*uSAF_SiMn(s1,t24,biogas) - 400*uSAF_SiMn(s1,t24,biochar) - 500*uSAF_SiMn(s1,t25,oil) - 450*uSAF_SiMn(s1,t25,biooil) - 120*uSAF_SiMn(s1,t25,woodchips) - 300*uSAF_SiMn(s1,t25,coke) - 500*uSAF_SiMn(s1,t25,COgas) - 2000*uSAF_SiMn(s1,t25,hydrogen) - 150*uSAF_SiMn(s1,t25,natgas) - 130*uSAF_SiMn(s1,t25,biogas) - 400*uSAF_SiMn(s1,t25,biochar) - 500*uSAF_SiMn(s1,t26,oil) - 450*uSAF_SiMn(s1,t26,biooil) - 120*uSAF_SiMn(s1,t26,woodchips) - 300*uSAF_SiMn(s1,t26,coke) - 500*uSAF_SiMn(s1,t26,COgas) - 2000*uSAF_SiMn(s1,t26,hydrogen) - 150*uSAF_SiMn(s1,t26,natgas) - 130*uSAF_SiMn(s1,t26,biogas) - 400*uSAF_SiMn(s1,t26,biochar) - 500*uSAF_SiMn(s1,t27,oil) - 450*uSAF_SiMn(s1,t27,biooil) - 120*uSAF_SiMn(s1,t27,woodchips) - 300*uSAF_SiMn(s1,t27,coke) - 500*uSAF_SiMn(s1,t27,COgas) - 2000*uSAF_SiMn(s1,t27,hydrogen) - 150*uSAF_SiMn(s1,t27,natgas) - 130*uSAF_SiMn(s1,t27,biogas) - 400*uSAF_SiMn(s1,t27,biochar) - 500*uSAF_SiMn(s1,t28,oil) - 450*uSAF_SiMn(s1,t28,biooil) - 120*uSAF_SiMn(s1,t28,woodchips) - 300*uSAF_SiMn(s1,t28,coke) - 500*uSAF_SiMn(s1,t28,COgas) - 2000*uSAF_SiMn(s1,t28,hydrogen) - 150*uSAF_SiMn(s1,t28,natgas) - 130*uSAF_SiMn(s1,t28,biogas) - 400*uSAF_SiMn(s1,t28,biochar) - 500*uSAF_SiMn(s1,t29,oil) - 450*uSAF_SiMn(s1,t29,biooil) - 120*uSAF_SiMn(s1,t29,woodchips) - 300*uSAF_SiMn(s1,t29,coke) - 500*uSAF_SiMn(s1,t29,COgas) - 2000*uSAF_SiMn(s1,t29,hydrogen) - 150*uSAF_SiMn(s1,t29,natgas) - 130*uSAF_SiMn(s1,t29,biogas) - 400*uSAF_SiMn(s1,t29,biochar) - 500*uSAF_SiMn(s1,t30,oil) - 450*uSAF_SiMn(s1,t30,biooil) - 120*uSAF_SiMn(s1,t30,woodchips) - 300*uSAF_SiMn(s1,t30,coke) - 500*uSAF_SiMn(s1,t30,COgas) - 2000*uSAF_SiMn(s1,t30,hydrogen) - 150*uSAF_SiMn(s1,t30,natgas) - 130*uSAF_SiMn(s1,t30,biogas) - 400*uSAF_SiMn(s1,t30,biochar) - 500*uSAF_SiMn(s2,t1,oil) - 450*uSAF_SiMn(s2,t1,biooil) - 120*uSAF_SiMn(s2,t1,woodchips) - 300*uSAF_SiMn(s2,t1,coke) - 500*uSAF_SiMn(s2,t1,COgas) - 2000*uSAF_SiMn(s2,t1,hydrogen) - 150*uSAF_SiMn(s2,t1,natgas) - 130*uSAF_SiMn(s2,t1,biogas) - 400*uSAF_SiMn(s2,t1,biochar) - 500*uSAF_SiMn(s2,t2,oil) - 450*uSAF_SiMn(s2,t2,biooil) - 120*uSAF_SiMn(s2,t2,woodchips) - 300*uSAF_SiMn(s2,t2,coke) - 500*uSAF_SiMn(s2,t2,COgas) - 2000*uSAF_SiMn(s2,t2,hydrogen) - 150*uSAF_SiMn(s2,t2,natgas) - 130*uSAF_SiMn(s2,t2,biogas) - 400*uSAF_SiMn(s2,t2,biochar) - 500*uSAF_SiMn(s2,t3,oil) - 450*uSAF_SiMn(s2,t3,biooil) - 120*uSAF_SiMn(s2,t3,woodchips) - 300*uSAF_SiMn(s2,t3,coke) - 500*uSAF_SiMn(s2,t3,COgas) - 2000*uSAF_SiMn(s2,t3,hydrogen) - 150*uSAF_SiMn(s2,t3,natgas) - 130*uSAF_SiMn(s2,t3,biogas) - 400*uSAF_SiMn(s2,t3,biochar) - 500*uSAF_SiMn(s2,t4,oil) - 450*uSAF_SiMn(s2,t4,biooil) - 120*uSAF_SiMn(s2,t4,woodchips) - 300*uSAF_SiMn(s2,t4,coke) - 500*uSAF_SiMn(s2,t4,COgas) - 2000*uSAF_SiMn(s2,t4,hydrogen) - 150*uSAF_SiMn(s2,t4,natgas) - 130*uSAF_SiMn(s2,t4,biogas) - 400*uSAF_SiMn(s2,t4,biochar) - 500*uSAF_SiMn(s2,t5,oil) - 450*uSAF_SiMn(s2,t5,biooil) - 120*uSAF_SiMn(s2,t5,woodchips) - 300*uSAF_SiMn(s2,t5,coke) - 500*uSAF_SiMn(s2,t5,COgas) - 2000*uSAF_SiMn(s2,t5,hydrogen) - 150*uSAF_SiMn(s2,t5,natgas) - 130*uSAF_SiMn(s2,t5,biogas) - 400*uSAF_SiMn(s2,t5,biochar) - 500*uSAF_SiMn(s2,t6,oil) - 450*uSAF_SiMn(s2,t6,biooil) - 120*uSAF_SiMn(s2,t6,woodchips) - 300*uSAF_SiMn(s2,t6,coke) - 500*uSAF_SiMn(s2,t6,COgas) - 2000*uSAF_SiMn(s2,t6,hydrogen) - 150*uSAF_SiMn(s2,t6,natgas) - 130*uSAF_SiMn(s2,t6,biogas) - 400*uSAF_SiMn(s2,t6,biochar) - 500*uSAF_SiMn(s2,t7,oil) - 450*uSAF_SiMn(s2,t7,biooil) - 120*uSAF_SiMn(s2,t7,woodchips) - 300*uSAF_SiMn(s2,t7,coke) - 500*uSAF_SiMn(s2,t7,COgas) - 2000*uSAF_SiMn(s2,t7,hydrogen) - 150*uSAF_SiMn(s2,t7,natgas) - 130*uSAF_SiMn(s2,t7,biogas) - 400*uSAF_SiMn(s2,t7,biochar) - 500*uSAF_SiMn(s2,t8,oil) - 450*uSAF_SiMn(s2,t8,biooil) - 120*uSAF_SiMn(s2,t8,woodchips) - 300*uSAF_SiMn(s2,t8,coke) - 500*uSAF_SiMn(s2,t8,COgas) - 2000*uSAF_SiMn(s2,t8,hydrogen) - 150*uSAF_SiMn(s2,t8,natgas) - 130*uSAF_SiMn(s2,t8,biogas) - 400*uSAF_SiMn(s2,t8,biochar) - 500*uSAF_SiMn(s2,t9,oil) - 450*uSAF_SiMn(s2,t9,biooil) - 120*uSAF_SiMn(s2,t9,woodchips) - 300*uSAF_SiMn(s2,t9,coke) - 500*uSAF_SiMn(s2,t9,COgas) - 2000*uSAF_SiMn(s2,t9,hydrogen) - 150*uSAF_SiMn(s2,t9,natgas) - 130*uSAF_SiMn(s2,t9,biogas) - 400*uSAF_SiMn(s2,t9,biochar) - 500*uSAF_SiMn(s2,t10,oil) - 450*uSAF_SiMn(s2,t10,biooil) - 120*uSAF_SiMn(s2,t10,woodchips) - 300*uSAF_SiMn(s2,t10,coke) - 500*uSAF_SiMn(s2,t10,COgas) - 2000*uSAF_SiMn(s2,t10,hydrogen) - 150*uSAF_SiMn(s2,t10,natgas) - 130*uSAF_SiMn(s2,t10,biogas) - 400*uSAF_SiMn(s2,t10,biochar) - 500*uSAF_SiMn(s2,t11,oil) - 450*uSAF_SiMn(s2,t11,biooil) - 120*uSAF_SiMn(s2,t11,woodchips) - 300*uSAF_SiMn(s2,t11,coke) - 500*uSAF_SiMn(s2,t11,COgas) - 2000*uSAF_SiMn(s2,t11,hydrogen) - 150*uSAF_SiMn(s2,t11,natgas) - 130*uSAF_SiMn(s2,t11,biogas) - 400*uSAF_SiMn(s2,t11,biochar) - 500*uSAF_SiMn(s2,t12,oil) - 450*uSAF_SiMn(s2,t12,biooil) - 120*uSAF_SiMn(s2,t12,woodchips) - 300*uSAF_SiMn(s2,t12,coke) - 500*uSAF_SiMn(s2,t12,COgas) - 2000*uSAF_SiMn(s2,t12,hydrogen) - 150*uSAF_SiMn(s2,t12,natgas) - 130*uSAF_SiMn(s2,t12,biogas) - 400*uSAF_SiMn(s2,t12,biochar) - 500*uSAF_SiMn(s2,t13,oil) - 450*uSAF_SiMn(s2,t13,biooil) - 120*uSAF_SiMn(s2,t13,woodchips) - 300*uSAF_SiMn(s2,t13,coke) - 500*uSAF_SiMn(s2,t13,COgas) - 2000*uSAF_SiMn(s2,t13,hydrogen) - 150*uSAF_SiMn(s2,t13,natgas) - 130*uSAF_SiMn(s2,t13,biogas) - 400*uSAF_SiMn(s2,t13,biochar) - 500*uSAF_SiMn(s2,t14,oil) - 450*uSAF_SiMn(s2,t14,biooil) - 120*uSAF_SiMn(s2,t14,woodchips) - 300*uSAF_SiMn(s2,t14,coke) - 500*uSAF_SiMn(s2,t14,COgas) - 2000*uSAF_SiMn(s2,t14,hydrogen) - 150*uSAF_SiMn(s2,t14,natgas) - 130*uSAF_SiMn(s2,t14,biogas) - 400*uSAF_SiMn(s2,t14,biochar) - 500*uSAF_SiMn(s2,t15,oil) - 450*uSAF_SiMn(s2,t15,biooil) - 120*uSAF_SiMn(s2,t15,woodchips) - 300*uSAF_SiMn(s2,t15,coke) - 500*uSAF_SiMn(s2,t15,COgas) - 2000*uSAF_SiMn(s2,t15,hydrogen) - 150*uSAF_SiMn(s2,t15,natgas) - 130*uSAF_SiMn(s2,t15,biogas) - 400*uSAF_SiMn(s2,t15,biochar) - 500*uSAF_SiMn(s2,t16,oil) - 450*uSAF_SiMn(s2,t16,biooil) - 120*uSAF_SiMn(s2,t16,woodchips) - 300*uSAF_SiMn(s2,t16,coke) - 500*uSAF_SiMn(s2,t16,COgas) - 2000*uSAF_SiMn(s2,t16,hydrogen) - 150*uSAF_SiMn(s2,t16,natgas) - 130*uSAF_SiMn(s2,t16,biogas) - 400*uSAF_SiMn(s2,t16,biochar) - 500*uSAF_SiMn(s2,t17,oil) - 450*uSAF_SiMn(s2,t17,biooil) - 120*uSAF_SiMn(s2,t17,woodchips) - 300*uSAF_SiMn(s2,t17,coke) - 500*uSAF_SiMn(s2,t17,COgas) - 2000*uSAF_SiMn(s2,t17,hydrogen) - 150*uSAF_SiMn(s2,t17,natgas) - 130*uSAF_SiMn(s2,t17,biogas) - 400*uSAF_SiMn(s2,t17,biochar) - 500*uSAF_SiMn(s2,t18,oil) - 450*uSAF_SiMn(s2,t18,biooil) - 120*uSAF_SiMn(s2,t18,woodchips) - 300*uSAF_SiMn(s2,t18,coke) - 500*uSAF_SiMn(s2,t18,COgas) - 2000*uSAF_SiMn(s2,t18,hydrogen) - 150*uSAF_SiMn(s2,t18,natgas) - 130*uSAF_SiMn(s2,t18,biogas) - 400*uSAF_SiMn(s2,t18,biochar) - 500*uSAF_SiMn(s2,t19,oil) - 450*uSAF_SiMn(s2,t19,biooil) - 120*uSAF_SiMn(s2,t19,woodchips) - 300*uSAF_SiMn(s2,t19,coke) - 500*uSAF_SiMn(s2,t19,COgas) - 2000*uSAF_SiMn(s2,t19,hydrogen) - 150*uSAF_SiMn(s2,t19,natgas) - 130*uSAF_SiMn(s2,t19,biogas) - 400*uSAF_SiMn(s2,t19,biochar) - 500*uSAF_SiMn(s2,t20,oil) - 450*uSAF_SiMn(s2,t20,biooil) - 120*uSAF_SiMn(s2,t20,woodchips) - 300*uSAF_SiMn(s2,t20,coke) - 500*uSAF_SiMn(s2,t20,COgas) - 2000*uSAF_SiMn(s2,t20,hydrogen)
      
-      - 150*uSAF_SiMn(s2,t20,natgas) - 130*uSAF_SiMn(s2,t20,biogas) - 400*uSAF_SiMn(s2,t20,biochar) - 500*uSAF_SiMn(s2,t21,oil) - 450*uSAF_SiMn(s2,t21,biooil) - 120*uSAF_SiMn(s2,t21,woodchips) - 300*uSAF_SiMn(s2,t21,coke) - 500*uSAF_SiMn(s2,t21,COgas) - 2000*uSAF_SiMn(s2,t21,hydrogen) - 150*uSAF_SiMn(s2,t21,natgas) - 130*uSAF_SiMn(s2,t21,biogas) - 400*uSAF_SiMn(s2,t21,biochar) - 500*uSAF_SiMn(s2,t22,oil) - 450*uSAF_SiMn(s2,t22,biooil) - 120*uSAF_SiMn(s2,t22,woodchips) - 300*uSAF_SiMn(s2,t22,coke) - 500*uSAF_SiMn(s2,t22,COgas) - 2000*uSAF_SiMn(s2,t22,hydrogen) - 150*uSAF_SiMn(s2,t22,natgas) - 130*uSAF_SiMn(s2,t22,biogas) - 400*uSAF_SiMn(s2,t22,biochar) - 500*uSAF_SiMn(s2,t23,oil) - 450*uSAF_SiMn(s2,t23,biooil) - 120*uSAF_SiMn(s2,t23,woodchips) - 300*uSAF_SiMn(s2,t23,coke) - 500*uSAF_SiMn(s2,t23,COgas) - 2000*uSAF_SiMn(s2,t23,hydrogen) - 150*uSAF_SiMn(s2,t23,natgas) - 130*uSAF_SiMn(s2,t23,biogas) - 400*uSAF_SiMn(s2,t23,biochar) - 500*uSAF_SiMn(s2,t24,oil) - 450*uSAF_SiMn(s2,t24,biooil) - 120*uSAF_SiMn(s2,t24,woodchips) - 300*uSAF_SiMn(s2,t24,coke) - 500*uSAF_SiMn(s2,t24,COgas) - 2000*uSAF_SiMn(s2,t24,hydrogen) - 150*uSAF_SiMn(s2,t24,natgas) - 130*uSAF_SiMn(s2,t24,biogas) - 400*uSAF_SiMn(s2,t24,biochar) - 500*uSAF_SiMn(s2,t25,oil) - 450*uSAF_SiMn(s2,t25,biooil) - 120*uSAF_SiMn(s2,t25,woodchips) - 300*uSAF_SiMn(s2,t25,coke) - 500*uSAF_SiMn(s2,t25,COgas) - 2000*uSAF_SiMn(s2,t25,hydrogen) - 150*uSAF_SiMn(s2,t25,natgas) - 130*uSAF_SiMn(s2,t25,biogas) - 400*uSAF_SiMn(s2,t25,biochar) - 500*uSAF_SiMn(s2,t26,oil) - 450*uSAF_SiMn(s2,t26,biooil) - 120*uSAF_SiMn(s2,t26,woodchips) - 300*uSAF_SiMn(s2,t26,coke) - 500*uSAF_SiMn(s2,t26,COgas) - 2000*uSAF_SiMn(s2,t26,hydrogen) - 150*uSAF_SiMn(s2,t26,natgas) - 130*uSAF_SiMn(s2,t26,biogas) - 400*uSAF_SiMn(s2,t26,biochar) - 500*uSAF_SiMn(s2,t27,oil) - 450*uSAF_SiMn(s2,t27,biooil) - 120*uSAF_SiMn(s2,t27,woodchips) - 300*uSAF_SiMn(s2,t27,coke) - 500*uSAF_SiMn(s2,t27,COgas) - 2000*uSAF_SiMn(s2,t27,hydrogen) - 150*uSAF_SiMn(s2,t27,natgas) - 130*uSAF_SiMn(s2,t27,biogas) - 400*uSAF_SiMn(s2,t27,biochar) - 500*uSAF_SiMn(s2,t28,oil) - 450*uSAF_SiMn(s2,t28,biooil) - 120*uSAF_SiMn(s2,t28,woodchips) - 300*uSAF_SiMn(s2,t28,coke) - 500*uSAF_SiMn(s2,t28,COgas) - 2000*uSAF_SiMn(s2,t28,hydrogen) - 150*uSAF_SiMn(s2,t28,natgas) - 130*uSAF_SiMn(s2,t28,biogas) - 400*uSAF_SiMn(s2,t28,biochar) - 500*uSAF_SiMn(s2,t29,oil) - 450*uSAF_SiMn(s2,t29,biooil) - 120*uSAF_SiMn(s2,t29,woodchips) - 300*uSAF_SiMn(s2,t29,coke) - 500*uSAF_SiMn(s2,t29,COgas) - 2000*uSAF_SiMn(s2,t29,hydrogen) - 150*uSAF_SiMn(s2,t29,natgas) - 130*uSAF_SiMn(s2,t29,biogas) - 400*uSAF_SiMn(s2,t29,biochar) - 500*uSAF_SiMn(s2,t30,oil) - 450*uSAF_SiMn(s2,t30,biooil) - 120*uSAF_SiMn(s2,t30,woodchips) - 300*uSAF_SiMn(s2,t30,coke) - 500*uSAF_SiMn(s2,t30,COgas) - 2000*uSAF_SiMn(s2,t30,hydrogen) - 150*uSAF_SiMn(s2,t30,natgas) - 130*uSAF_SiMn(s2,t30,biogas) - 400*uSAF_SiMn(s2,t30,biochar) - 500*uSint_LT(t1,oil) - 450*uSint_LT(t1,biooil) - 120*uSint_LT(t1,woodchips) - 500*uSint_LT(t2,oil) - 450*uSint_LT(t2,biooil) - 120*uSint_LT(t2,woodchips) - 500*uSint_LT(t3,oil) - 450*uSint_LT(t3,biooil) - 120*uSint_LT(t3,woodchips) - 500*uSint_LT(t4,oil) - 450*uSint_LT(t4,biooil) - 120*uSint_LT(t4,woodchips) - 500*uSint_LT(t5,oil) - 450*uSint_LT(t5,biooil) - 120*uSint_LT(t5,woodchips) - 500*uSint_LT(t6,oil) - 450*uSint_LT(t6,biooil) - 120*uSint_LT(t6,woodchips) - 500*uSint_LT(t7,oil) - 450*uSint_LT(t7,biooil) - 120*uSint_LT(t7,woodchips) - 500*uSint_LT(t8,oil) - 450*uSint_LT(t8,biooil) - 120*uSint_LT(t8,woodchips) - 500*uSint_LT(t9,oil) - 450*uSint_LT(t9,biooil) - 120*uSint_LT(t9,woodchips) - 500*uSint_LT(t10,oil) - 450*uSint_LT(t10,biooil) - 120*uSint_LT(t10,woodchips) - 500*uSint_LT(t11,oil) - 450*uSint_LT(t11,biooil) - 120*uSint_LT(t11,woodchips) - 500*uSint_LT(t12,oil) - 450*uSint_LT(t12,biooil) - 120*uSint_LT(t12,woodchips) - 500*uSint_LT(t13,oil) - 450*uSint_LT(t13,biooil) - 120*uSint_LT(t13,woodchips) - 500*uSint_LT(t14,oil) - 450*uSint_LT(t14,biooil) - 120*uSint_LT(t14,woodchips) - 500*uSint_LT(t15,oil) - 450*uSint_LT(t15,biooil) - 120*uSint_LT(t15,woodchips) - 500*uSint_LT(t16,oil) - 450*uSint_LT(t16,biooil) - 120*uSint_LT(t16,woodchips) - 500*uSint_LT(t17,oil) - 450*uSint_LT(t17,biooil) - 120*uSint_LT(t17,woodchips) - 500*uSint_LT(t18,oil) - 450*uSint_LT(t18,biooil) - 120*uSint_LT(t18,woodchips) - 500*uSint_LT(t19,oil) - 450*uSint_LT(t19,biooil) - 120*uSint_LT(t19,woodchips) - 500*uSint_LT(t20,oil) - 450*uSint_LT(t20,biooil) - 120*uSint_LT(t20,woodchips) - 500*uSint_LT(t21,oil) - 450*uSint_LT(t21,biooil) - 120*uSint_LT(t21,woodchips) - 500*uSint_LT(t22,oil) - 450*uSint_LT(t22,biooil) - 120*uSint_LT(t22,woodchips) - 500*uSint_LT(t23,oil) - 450*uSint_LT(t23,biooil) - 120*uSint_LT(t23,woodchips) - 500*uSint_LT(t24,oil) - 450*uSint_LT(t24,biooil) - 120*uSint_LT(t24,woodchips) - 500*uSint_LT(t25,oil) - 450*uSint_LT(t25,biooil) - 120*uSint_LT(t25,woodchips) - 500*uSint_LT(t26,oil) - 450*uSint_LT(t26,biooil) - 120*uSint_LT(t26,woodchips) - 500*uSint_LT(t27,oil) - 450*uSint_LT(t27,biooil) - 120*uSint_LT(t27,woodchips) - 500*uSint_LT(t28,oil) - 450*uSint_LT(t28,biooil) - 120*uSint_LT(t28,woodchips) - 500*uSint_LT(t29,oil) - 450*uSint_LT(t29,biooil) - 120*uSint_LT(t29,woodchips) - 500*uSint_LT(t30,oil) - 450*uSint_LT(t30,biooil) - 120*uSint_LT(t30,woodchips) - 300*uSint_HT(t1,coke) - 500*uSint_HT(t1,COgas) - 2000*uSint_HT(t1,hydrogen) - 150*uSint_HT(t1,natgas) - 130*uSint_HT(t1,biogas) - 400*uSint_HT(t1,biochar) - 300*uSint_HT(t2,coke) - 500*uSint_HT(t2,COgas) - 2000*uSint_HT(t2,hydrogen) - 150*uSint_HT(t2,natgas) - 130*uSint_HT(t2,biogas) - 400*uSint_HT(t2,biochar) - 300*uSint_HT(t3,coke) - 500*uSint_HT(t3,COgas) - 2000*uSint_HT(t3,hydrogen) - 150*uSint_HT(t3,natgas) - 130*uSint_HT(t3,biogas) - 400*uSint_HT(t3,biochar) - 300*uSint_HT(t4,coke) - 500*uSint_HT(t4,COgas) - 2000*uSint_HT(t4,hydrogen) - 150*uSint_HT(t4,natgas) - 130*uSint_HT(t4,biogas) - 400*uSint_HT(t4,biochar) - 300*uSint_HT(t5,coke) - 500*uSint_HT(t5,COgas) - 2000*uSint_HT(t5,hydrogen) - 150*uSint_HT(t5,natgas) - 130*uSint_HT(t5,biogas) - 400*uSint_HT(t5,biochar) - 300*uSint_HT(t6,coke) - 500*uSint_HT(t6,COgas) - 2000*uSint_HT(t6,hydrogen) - 150*uSint_HT(t6,natgas) - 130*uSint_HT(t6,biogas) - 400*uSint_HT(t6,biochar) - 300*uSint_HT(t7,coke) - 500*uSint_HT(t7,COgas) - 2000*uSint_HT(t7,hydrogen) - 150*uSint_HT(t7,natgas) - 130*uSint_HT(t7,biogas) - 400*uSint_HT(t7,biochar) - 300*uSint_HT(t8,coke) - 500*uSint_HT(t8,COgas) - 2000*uSint_HT(t8,hydrogen) - 150*uSint_HT(t8,natgas) - 130*uSint_HT(t8,biogas) - 400*uSint_HT(t8,biochar) - 300*uSint_HT(t9,coke) - 500*uSint_HT(t9,COgas) - 2000*uSint_HT(t9,hydrogen) - 150*uSint_HT(t9,natgas) - 130*uSint_HT(t9,biogas) - 400*uSint_HT(t9,biochar) - 300*uSint_HT(t10,coke) - 500*uSint_HT(t10,COgas) - 2000*uSint_HT(t10,hydrogen) - 150*uSint_HT(t10,natgas) - 130*uSint_HT(t10,biogas) - 400*uSint_HT(t10,biochar) - 300*uSint_HT(t11,coke) - 500*uSint_HT(t11,COgas) - 2000*uSint_HT(t11,hydrogen) - 150*uSint_HT(t11,natgas) - 130*uSint_HT(t11,biogas) - 400*uSint_HT(t11,biochar) - 300*uSint_HT(t12,coke) - 500*uSint_HT(t12,COgas) - 2000*uSint_HT(t12,hydrogen) - 150*uSint_HT(t12,natgas) - 130*uSint_HT(t12,biogas) - 400*uSint_HT(t12,biochar) - 300*uSint_HT(t13,coke) - 500*uSint_HT(t13,COgas) - 2000*uSint_HT(t13,hydrogen) - 150*uSint_HT(t13,natgas) - 130*uSint_HT(t13,biogas) - 400*uSint_HT(t13,biochar) - 300*uSint_HT(t14,coke) - 500*uSint_HT(t14,COgas) - 2000*uSint_HT(t14,hydrogen) - 150*uSint_HT(t14,natgas) - 130*uSint_HT(t14,biogas) - 400*uSint_HT(t14,biochar) - 300*uSint_HT(t15,coke) - 500*uSint_HT(t15,COgas) - 2000*uSint_HT(t15,hydrogen) - 150*uSint_HT(t15,natgas) - 130*uSint_HT(t15,biogas) - 400*uSint_HT(t15,biochar) - 300*uSint_HT(t16,coke) - 500*uSint_HT(t16,COgas) - 2000*uSint_HT(t16,hydrogen) - 150*uSint_HT(t16,natgas) - 130*uSint_HT(t16,biogas) - 400*uSint_HT(t16,biochar) - 300*uSint_HT(t17,coke) - 500*uSint_HT(t17,COgas) - 2000*uSint_HT(t17,hydrogen) - 150*uSint_HT(t17,natgas) - 130*uSint_HT(t17,biogas) - 400*uSint_HT(t17,biochar) - 300*uSint_HT(t18,coke) - 500*uSint_HT(t18,COgas) - 2000*uSint_HT(t18,hydrogen) - 150*uSint_HT(t18,natgas) - 130*uSint_HT(t18,biogas) - 400*uSint_HT(t18,biochar) - 300*uSint_HT(t19,coke) - 500*uSint_HT(t19,COgas) - 2000*uSint_HT(t19,hydrogen) - 150*uSint_HT(t19,natgas) - 130*uSint_HT(t19,biogas) - 400*uSint_HT(t19,biochar) - 300*uSint_HT(t20,coke) - 500*uSint_HT(t20,COgas) - 2000*uSint_HT(t20,hydrogen) - 150*uSint_HT(t20,natgas) - 130*uSint_HT(t20,biogas) - 400*uSint_HT(t20,biochar) - 300*uSint_HT(t21,coke) - 500*uSint_HT(t21,COgas) - 2000*uSint_HT(t21,hydrogen) - 150*uSint_HT(t21,natgas) - 130*uSint_HT(t21,biogas) - 400*uSint_HT(t21,biochar) - 300*uSint_HT(t22,coke) - 500*uSint_HT(t22,COgas) - 2000*uSint_HT(t22,hydrogen) - 150*uSint_HT(t22,natgas) - 130*uSint_HT(t22,biogas) - 400*uSint_HT(t22,biochar) - 300*uSint_HT(t23,coke) - 500*uSint_HT(t23,COgas) - 2000*uSint_HT(t23,hydrogen) - 150*uSint_HT(t23,natgas) - 130*uSint_HT(t23,biogas) - 400*uSint_HT(t23,biochar) - 300*uSint_HT(t24,coke) - 500*uSint_HT(t24,COgas) - 2000*uSint_HT(t24,hydrogen) - 150*uSint_HT(t24,natgas) - 130*uSint_HT(t24,biogas) - 400*uSint_HT(t24,biochar) - 300*uSint_HT(t25,coke) - 500*uSint_HT(t25,COgas) - 2000*uSint_HT(t25,hydrogen) - 150*uSint_HT(t25,natgas) - 130*uSint_HT(t25,biogas) - 400*uSint_HT(t25,biochar) - 300*uSint_HT(t26,coke) - 500*uSint_HT(t26,COgas) - 2000*uSint_HT(t26,hydrogen) - 150*uSint_HT(t26,natgas) - 130*uSint_HT(t26,biogas) - 400*uSint_HT(t26,biochar) - 300*uSint_HT(t27,coke) - 500*uSint_HT(t27,COgas) - 2000*uSint_HT(t27,hydrogen) - 150*uSint_HT(t27,natgas) - 130*uSint_HT(t27,biogas) - 400*uSint_HT(t27,biochar) - 300*uSint_HT(t28,coke) - 500*uSint_HT(t28,COgas) - 2000*uSint_HT(t28,hydrogen) - 150*uSint_HT(t28,natgas) - 130*uSint_HT(t28,biogas) - 400*uSint_HT(t28,biochar) - 300*uSint_HT(t29,coke) - 500*uSint_HT(t29,COgas) - 2000*uSint_HT(t29,hydrogen) - 150*uSint_HT(t29,natgas) - 130*uSint_HT(t29,biogas) - 400*uSint_HT(t29,biochar) - 300*uSint_HT(t30,coke) - 500*uSint_HT(t30,COgas) - 2000*uSint_HT(t30,hydrogen) - 150*uSint_HT(t30,natgas) - 130*uSint_HT(t30,biogas) - 400*uSint_HT(t30,biochar) - 50*qBiocarbon(t5) - 50*qBiocarbon(t10) - 50*qBiocarbon(t15) - 50*qBiocarbon(t20) - 50*qBiocarbon(t25) - 50*qBiocarbon(t30) - 100*qCCS(t5) - 100*qCCS(t10) - 100*qCCS(t15) - 100*qCCS(t20) - 100*qCCS(t25) - 100*qCCS(t30) - 50*CO2_captured(t1) - 50*CO2_captured(t2) - 50*CO2_captured(t3) - 50*CO2_captured(t4) - 50*CO2_captured(t5) - 50*CO2_captured(t6) - 50*CO2_captured(t7) - 50*CO2_captured(t8) - 50*CO2_captured(t9) - 50*CO2_captured(t10) - 50*CO2_captured(t11) - 50*CO2_captured(t12) - 50*CO2_captured(t13) - 50*CO2_captured(t14) - 50*CO2_captured(t15) - 50*CO2_captured(t16) - 50*CO2_captured(t17) - 50*CO2_captured(t18) - 50*CO2_captured(t19) - 50*CO2_captured(t20) - 50*CO2_captured(t21) - 50*CO2_captured(t22) - 50*CO2_captured(t23) - 50*CO2_captured(t24) - 50*CO2_captured(t25) - 50*CO2_captured(t26) - 50*CO2_captured(t27) - 50*CO2_captured(t28) - 50*CO2_captured(t29) - 50*CO2_captured(t30) - 0.01*eCCS_el(t1) - 0.01*eCCS_el(t2) - 0.01*eCCS_el(t3) - 0.01*eCCS_el(t4) - 0.01*eCCS_el(t5) - 0.01*eCCS_el(t6) - 0.01*eCCS_el(t7) - 0.01*eCCS_el(t8) - 0.01*eCCS_el(t9) - 0.01*eCCS_el(t10) - 0.01*eCCS_el(t11) - 0.01*eCCS_el(t12) - 0.01*eCCS_el(t13) - 0.01*eCCS_el(t14) - 0.01*eCCS_el(t15) - 0.01*eCCS_el(t16) - 0.01*eCCS_el(t17) - 0.01*eCCS_el(t18) - 0.01*eCCS_el(t19) - 0.01*eCCS_el(t20) - 0.01*eCCS_el(t21) - 0.01*eCCS_el(t22) - 0.01*eCCS_el(t23) - 0.01*eCCS_el(t24) - 0.01*eCCS_el(t25) - 0.01*eCCS_el(t26) - 0.01*eCCS_el(t27) - 0.01*eCCS_el(t28) - 0.01*eCCS_el(t29) - 0.01*eCCS_el(t30) - 115*CO2_ets(t1) - 132*CO2_ets(t2) - 149*CO2_ets(t3) - 166*CO2_ets(t4) - 183*CO2_ets(t5) - 200*CO2_ets(t6) - 217*CO2_ets(t7) - 234*CO2_ets(t8) - 251*CO2_ets(t9) - 268*CO2_ets(t10) - 285*CO2_ets(t11) - 302*CO2_ets(t12) - 319*CO2_ets(t13) - 336*CO2_ets(t14) - 353*CO2_ets(t15) - 370*CO2_ets(t16) - 387*CO2_ets(t17) - 404*CO2_ets(t18) - 421*CO2_ets(t19) - 438*CO2_ets(t20) - 455*CO2_ets(t21) - 472*CO2_ets(t22) - 489*CO2_ets(t23) - 506*CO2_ets(t24) - 523*CO2_ets(t25) - 540*CO2_ets(t26) - 557*CO2_ets(t27) - 574*CO2_ets(t28) - 591*CO2_ets(t29) - 608*CO2_ets(t30) + TotalCost =E= 300000 ; (LHS = 0, INFES = 300000 ****)
+      - 150*uSAF_SiMn(s2,t20,natgas) - 130*uSAF_SiMn(s2,t20,biogas) - 400*uSAF_SiMn(s2,t20,biochar) - 500*uSAF_SiMn(s2,t21,oil) - 450*uSAF_SiMn(s2,t21,biooil) - 120*uSAF_SiMn(s2,t21,woodchips) - 300*uSAF_SiMn(s2,t21,coke) - 500*uSAF_SiMn(s2,t21,COgas) - 2000*uSAF_SiMn(s2,t21,hydrogen) - 150*uSAF_SiMn(s2,t21,natgas) - 130*uSAF_SiMn(s2,t21,biogas) - 400*uSAF_SiMn(s2,t21,biochar) - 500*uSAF_SiMn(s2,t22,oil) - 450*uSAF_SiMn(s2,t22,biooil) - 120*uSAF_SiMn(s2,t22,woodchips) - 300*uSAF_SiMn(s2,t22,coke) - 500*uSAF_SiMn(s2,t22,COgas) - 2000*uSAF_SiMn(s2,t22,hydrogen) - 150*uSAF_SiMn(s2,t22,natgas) - 130*uSAF_SiMn(s2,t22,biogas) - 400*uSAF_SiMn(s2,t22,biochar) - 500*uSAF_SiMn(s2,t23,oil) - 450*uSAF_SiMn(s2,t23,biooil) - 120*uSAF_SiMn(s2,t23,woodchips) - 300*uSAF_SiMn(s2,t23,coke) - 500*uSAF_SiMn(s2,t23,COgas) - 2000*uSAF_SiMn(s2,t23,hydrogen) - 150*uSAF_SiMn(s2,t23,natgas) - 130*uSAF_SiMn(s2,t23,biogas) - 400*uSAF_SiMn(s2,t23,biochar) - 500*uSAF_SiMn(s2,t24,oil) - 450*uSAF_SiMn(s2,t24,biooil) - 120*uSAF_SiMn(s2,t24,woodchips) - 300*uSAF_SiMn(s2,t24,coke) - 500*uSAF_SiMn(s2,t24,COgas) - 2000*uSAF_SiMn(s2,t24,hydrogen) - 150*uSAF_SiMn(s2,t24,natgas) - 130*uSAF_SiMn(s2,t24,biogas) - 400*uSAF_SiMn(s2,t24,biochar) - 500*uSAF_SiMn(s2,t25,oil) - 450*uSAF_SiMn(s2,t25,biooil) - 120*uSAF_SiMn(s2,t25,woodchips) - 300*uSAF_SiMn(s2,t25,coke) - 500*uSAF_SiMn(s2,t25,COgas) - 2000*uSAF_SiMn(s2,t25,hydrogen) - 150*uSAF_SiMn(s2,t25,natgas) - 130*uSAF_SiMn(s2,t25,biogas) - 400*uSAF_SiMn(s2,t25,biochar) - 500*uSAF_SiMn(s2,t26,oil) - 450*uSAF_SiMn(s2,t26,biooil) - 120*uSAF_SiMn(s2,t26,woodchips) - 300*uSAF_SiMn(s2,t26,coke) - 500*uSAF_SiMn(s2,t26,COgas) - 2000*uSAF_SiMn(s2,t26,hydrogen) - 150*uSAF_SiMn(s2,t26,natgas) - 130*uSAF_SiMn(s2,t26,biogas) - 400*uSAF_SiMn(s2,t26,biochar) - 500*uSAF_SiMn(s2,t27,oil) - 450*uSAF_SiMn(s2,t27,biooil) - 120*uSAF_SiMn(s2,t27,woodchips) - 300*uSAF_SiMn(s2,t27,coke) - 500*uSAF_SiMn(s2,t27,COgas) - 2000*uSAF_SiMn(s2,t27,hydrogen) - 150*uSAF_SiMn(s2,t27,natgas) - 130*uSAF_SiMn(s2,t27,biogas) - 400*uSAF_SiMn(s2,t27,biochar) - 500*uSAF_SiMn(s2,t28,oil) - 450*uSAF_SiMn(s2,t28,biooil) - 120*uSAF_SiMn(s2,t28,woodchips) - 300*uSAF_SiMn(s2,t28,coke) - 500*uSAF_SiMn(s2,t28,COgas) - 2000*uSAF_SiMn(s2,t28,hydrogen) - 150*uSAF_SiMn(s2,t28,natgas) - 130*uSAF_SiMn(s2,t28,biogas) - 400*uSAF_SiMn(s2,t28,biochar) - 500*uSAF_SiMn(s2,t29,oil) - 450*uSAF_SiMn(s2,t29,biooil) - 120*uSAF_SiMn(s2,t29,woodchips) - 300*uSAF_SiMn(s2,t29,coke) - 500*uSAF_SiMn(s2,t29,COgas) - 2000*uSAF_SiMn(s2,t29,hydrogen) - 150*uSAF_SiMn(s2,t29,natgas) - 130*uSAF_SiMn(s2,t29,biogas) - 400*uSAF_SiMn(s2,t29,biochar) - 500*uSAF_SiMn(s2,t30,oil) - 450*uSAF_SiMn(s2,t30,biooil) - 120*uSAF_SiMn(s2,t30,woodchips) - 300*uSAF_SiMn(s2,t30,coke) - 500*uSAF_SiMn(s2,t30,COgas) - 2000*uSAF_SiMn(s2,t30,hydrogen) - 150*uSAF_SiMn(s2,t30,natgas) - 130*uSAF_SiMn(s2,t30,biogas) - 400*uSAF_SiMn(s2,t30,biochar) - 500*uSint_LT(t1,oil) - 450*uSint_LT(t1,biooil) - 120*uSint_LT(t1,woodchips) - 500*uSint_LT(t2,oil) - 450*uSint_LT(t2,biooil) - 120*uSint_LT(t2,woodchips) - 500*uSint_LT(t3,oil) - 450*uSint_LT(t3,biooil) - 120*uSint_LT(t3,woodchips) - 500*uSint_LT(t4,oil) - 450*uSint_LT(t4,biooil) - 120*uSint_LT(t4,woodchips) - 500*uSint_LT(t5,oil) - 450*uSint_LT(t5,biooil) - 120*uSint_LT(t5,woodchips) - 500*uSint_LT(t6,oil) - 450*uSint_LT(t6,biooil) - 120*uSint_LT(t6,woodchips) - 500*uSint_LT(t7,oil) - 450*uSint_LT(t7,biooil) - 120*uSint_LT(t7,woodchips) - 500*uSint_LT(t8,oil) - 450*uSint_LT(t8,biooil) - 120*uSint_LT(t8,woodchips) - 500*uSint_LT(t9,oil) - 450*uSint_LT(t9,biooil) - 120*uSint_LT(t9,woodchips) - 500*uSint_LT(t10,oil) - 450*uSint_LT(t10,biooil) - 120*uSint_LT(t10,woodchips) - 500*uSint_LT(t11,oil) - 450*uSint_LT(t11,biooil) - 120*uSint_LT(t11,woodchips) - 500*uSint_LT(t12,oil) - 450*uSint_LT(t12,biooil) - 120*uSint_LT(t12,woodchips) - 500*uSint_LT(t13,oil) - 450*uSint_LT(t13,biooil) - 120*uSint_LT(t13,woodchips) - 500*uSint_LT(t14,oil) - 450*uSint_LT(t14,biooil) - 120*uSint_LT(t14,woodchips) - 500*uSint_LT(t15,oil) - 450*uSint_LT(t15,biooil) - 120*uSint_LT(t15,woodchips) - 500*uSint_LT(t16,oil) - 450*uSint_LT(t16,biooil) - 120*uSint_LT(t16,woodchips) - 500*uSint_LT(t17,oil) - 450*uSint_LT(t17,biooil) - 120*uSint_LT(t17,woodchips) - 500*uSint_LT(t18,oil) - 450*uSint_LT(t18,biooil) - 120*uSint_LT(t18,woodchips) - 500*uSint_LT(t19,oil) - 450*uSint_LT(t19,biooil) - 120*uSint_LT(t19,woodchips) - 500*uSint_LT(t20,oil) - 450*uSint_LT(t20,biooil) - 120*uSint_LT(t20,woodchips) - 500*uSint_LT(t21,oil) - 450*uSint_LT(t21,biooil) - 120*uSint_LT(t21,woodchips) - 500*uSint_LT(t22,oil) - 450*uSint_LT(t22,biooil) - 120*uSint_LT(t22,woodchips) - 500*uSint_LT(t23,oil) - 450*uSint_LT(t23,biooil) - 120*uSint_LT(t23,woodchips) - 500*uSint_LT(t24,oil) - 450*uSint_LT(t24,biooil) - 120*uSint_LT(t24,woodchips) - 500*uSint_LT(t25,oil) - 450*uSint_LT(t25,biooil) - 120*uSint_LT(t25,woodchips) - 500*uSint_LT(t26,oil) - 450*uSint_LT(t26,biooil) - 120*uSint_LT(t26,woodchips) - 500*uSint_LT(t27,oil) - 450*uSint_LT(t27,biooil) - 120*uSint_LT(t27,woodchips) - 500*uSint_LT(t28,oil) - 450*uSint_LT(t28,biooil) - 120*uSint_LT(t28,woodchips) - 500*uSint_LT(t29,oil) - 450*uSint_LT(t29,biooil) - 120*uSint_LT(t29,woodchips) - 500*uSint_LT(t30,oil) - 450*uSint_LT(t30,biooil) - 120*uSint_LT(t30,woodchips) - 300*uSint_HT(t1,coke) - 500*uSint_HT(t1,COgas) - 2000*uSint_HT(t1,hydrogen) - 150*uSint_HT(t1,natgas) - 130*uSint_HT(t1,biogas) - 400*uSint_HT(t1,biochar) - 300*uSint_HT(t2,coke) - 500*uSint_HT(t2,COgas) - 2000*uSint_HT(t2,hydrogen) - 150*uSint_HT(t2,natgas) - 130*uSint_HT(t2,biogas) - 400*uSint_HT(t2,biochar) - 300*uSint_HT(t3,coke) - 500*uSint_HT(t3,COgas) - 2000*uSint_HT(t3,hydrogen) - 150*uSint_HT(t3,natgas) - 130*uSint_HT(t3,biogas) - 400*uSint_HT(t3,biochar) - 300*uSint_HT(t4,coke) - 500*uSint_HT(t4,COgas) - 2000*uSint_HT(t4,hydrogen) - 150*uSint_HT(t4,natgas) - 130*uSint_HT(t4,biogas) - 400*uSint_HT(t4,biochar) - 300*uSint_HT(t5,coke) - 500*uSint_HT(t5,COgas) - 2000*uSint_HT(t5,hydrogen) - 150*uSint_HT(t5,natgas) - 130*uSint_HT(t5,biogas) - 400*uSint_HT(t5,biochar) - 300*uSint_HT(t6,coke) - 500*uSint_HT(t6,COgas) - 2000*uSint_HT(t6,hydrogen) - 150*uSint_HT(t6,natgas) - 130*uSint_HT(t6,biogas) - 400*uSint_HT(t6,biochar) - 300*uSint_HT(t7,coke) - 500*uSint_HT(t7,COgas) - 2000*uSint_HT(t7,hydrogen) - 150*uSint_HT(t7,natgas) - 130*uSint_HT(t7,biogas) - 400*uSint_HT(t7,biochar) - 300*uSint_HT(t8,coke) - 500*uSint_HT(t8,COgas) - 2000*uSint_HT(t8,hydrogen) - 150*uSint_HT(t8,natgas) - 130*uSint_HT(t8,biogas) - 400*uSint_HT(t8,biochar) - 300*uSint_HT(t9,coke) - 500*uSint_HT(t9,COgas) - 2000*uSint_HT(t9,hydrogen) - 150*uSint_HT(t9,natgas) - 130*uSint_HT(t9,biogas) - 400*uSint_HT(t9,biochar) - 300*uSint_HT(t10,coke) - 500*uSint_HT(t10,COgas) - 2000*uSint_HT(t10,hydrogen) - 150*uSint_HT(t10,natgas) - 130*uSint_HT(t10,biogas) - 400*uSint_HT(t10,biochar) - 300*uSint_HT(t11,coke) - 500*uSint_HT(t11,COgas) - 2000*uSint_HT(t11,hydrogen) - 150*uSint_HT(t11,natgas) - 130*uSint_HT(t11,biogas) - 400*uSint_HT(t11,biochar) - 300*uSint_HT(t12,coke) - 500*uSint_HT(t12,COgas) - 2000*uSint_HT(t12,hydrogen) - 150*uSint_HT(t12,natgas) - 130*uSint_HT(t12,biogas) - 400*uSint_HT(t12,biochar) - 300*uSint_HT(t13,coke) - 500*uSint_HT(t13,COgas) - 2000*uSint_HT(t13,hydrogen) - 150*uSint_HT(t13,natgas) - 130*uSint_HT(t13,biogas) - 400*uSint_HT(t13,biochar) - 300*uSint_HT(t14,coke) - 500*uSint_HT(t14,COgas) - 2000*uSint_HT(t14,hydrogen) - 150*uSint_HT(t14,natgas) - 130*uSint_HT(t14,biogas) - 400*uSint_HT(t14,biochar) - 300*uSint_HT(t15,coke) - 500*uSint_HT(t15,COgas) - 2000*uSint_HT(t15,hydrogen) - 150*uSint_HT(t15,natgas) - 130*uSint_HT(t15,biogas) - 400*uSint_HT(t15,biochar) - 300*uSint_HT(t16,coke) - 500*uSint_HT(t16,COgas) - 2000*uSint_HT(t16,hydrogen) - 150*uSint_HT(t16,natgas) - 130*uSint_HT(t16,biogas) - 400*uSint_HT(t16,biochar) - 300*uSint_HT(t17,coke) - 500*uSint_HT(t17,COgas) - 2000*uSint_HT(t17,hydrogen) - 150*uSint_HT(t17,natgas) - 130*uSint_HT(t17,biogas) - 400*uSint_HT(t17,biochar) - 300*uSint_HT(t18,coke) - 500*uSint_HT(t18,COgas) - 2000*uSint_HT(t18,hydrogen) - 150*uSint_HT(t18,natgas) - 130*uSint_HT(t18,biogas) - 400*uSint_HT(t18,biochar) - 300*uSint_HT(t19,coke) - 500*uSint_HT(t19,COgas) - 2000*uSint_HT(t19,hydrogen) - 150*uSint_HT(t19,natgas) - 130*uSint_HT(t19,biogas) - 400*uSint_HT(t19,biochar) - 300*uSint_HT(t20,coke) - 500*uSint_HT(t20,COgas) - 2000*uSint_HT(t20,hydrogen) - 150*uSint_HT(t20,natgas) - 130*uSint_HT(t20,biogas) - 400*uSint_HT(t20,biochar) - 300*uSint_HT(t21,coke) - 500*uSint_HT(t21,COgas) - 2000*uSint_HT(t21,hydrogen) - 150*uSint_HT(t21,natgas) - 130*uSint_HT(t21,biogas) - 400*uSint_HT(t21,biochar) - 300*uSint_HT(t22,coke) - 500*uSint_HT(t22,COgas) - 2000*uSint_HT(t22,hydrogen) - 150*uSint_HT(t22,natgas) - 130*uSint_HT(t22,biogas) - 400*uSint_HT(t22,biochar) - 300*uSint_HT(t23,coke) - 500*uSint_HT(t23,COgas) - 2000*uSint_HT(t23,hydrogen) - 150*uSint_HT(t23,natgas) - 130*uSint_HT(t23,biogas) - 400*uSint_HT(t23,biochar) - 300*uSint_HT(t24,coke) - 500*uSint_HT(t24,COgas) - 2000*uSint_HT(t24,hydrogen) - 150*uSint_HT(t24,natgas) - 130*uSint_HT(t24,biogas) - 400*uSint_HT(t24,biochar) - 300*uSint_HT(t25,coke) - 500*uSint_HT(t25,COgas) - 2000*uSint_HT(t25,hydrogen) - 150*uSint_HT(t25,natgas) - 130*uSint_HT(t25,biogas) - 400*uSint_HT(t25,biochar) - 300*uSint_HT(t26,coke) - 500*uSint_HT(t26,COgas) - 2000*uSint_HT(t26,hydrogen) - 150*uSint_HT(t26,natgas) - 130*uSint_HT(t26,biogas) - 400*uSint_HT(t26,biochar) - 300*uSint_HT(t27,coke) - 500*uSint_HT(t27,COgas) - 2000*uSint_HT(t27,hydrogen) - 150*uSint_HT(t27,natgas) - 130*uSint_HT(t27,biogas) - 400*uSint_HT(t27,biochar) - 300*uSint_HT(t28,coke) - 500*uSint_HT(t28,COgas) - 2000*uSint_HT(t28,hydrogen) - 150*uSint_HT(t28,natgas) - 130*uSint_HT(t28,biogas) - 400*uSint_HT(t28,biochar) - 300*uSint_HT(t29,coke) - 500*uSint_HT(t29,COgas) - 2000*uSint_HT(t29,hydrogen) - 150*uSint_HT(t29,natgas) - 130*uSint_HT(t29,biogas) - 400*uSint_HT(t29,biochar) - 300*uSint_HT(t30,coke) - 500*uSint_HT(t30,COgas) - 2000*uSint_HT(t30,hydrogen) - 150*uSint_HT(t30,natgas) - 130*uSint_HT(t30,biogas) - 400*uSint_HT(t30,biochar) - 100*qCCS(t5) - 100*qCCS(t10) - 100*qCCS(t15) - 100*qCCS(t20) - 100*qCCS(t25) - 100*qCCS(t30) - 50*CO2_captured(t1) - 50*CO2_captured(t2) - 50*CO2_captured(t3) - 50*CO2_captured(t4) - 50*CO2_captured(t5) - 50*CO2_captured(t6) - 50*CO2_captured(t7) - 50*CO2_captured(t8) - 50*CO2_captured(t9) - 50*CO2_captured(t10) - 50*CO2_captured(t11) - 50*CO2_captured(t12) - 50*CO2_captured(t13) - 50*CO2_captured(t14) - 50*CO2_captured(t15) - 50*CO2_captured(t16) - 50*CO2_captured(t17) - 50*CO2_captured(t18) - 50*CO2_captured(t19) - 50*CO2_captured(t20) - 50*CO2_captured(t21) - 50*CO2_captured(t22) - 50*CO2_captured(t23) - 50*CO2_captured(t24) - 50*CO2_captured(t25) - 50*CO2_captured(t26) - 50*CO2_captured(t27) - 50*CO2_captured(t28) - 50*CO2_captured(t29) - 50*CO2_captured(t30) - 0.01*eCCS_el(t1) - 0.01*eCCS_el(t2) - 0.01*eCCS_el(t3) - 0.01*eCCS_el(t4) - 0.01*eCCS_el(t5) - 0.01*eCCS_el(t6) - 0.01*eCCS_el(t7) - 0.01*eCCS_el(t8) - 0.01*eCCS_el(t9) - 0.01*eCCS_el(t10) - 0.01*eCCS_el(t11) - 0.01*eCCS_el(t12) - 0.01*eCCS_el(t13) - 0.01*eCCS_el(t14) - 0.01*eCCS_el(t15) - 0.01*eCCS_el(t16) - 0.01*eCCS_el(t17) - 0.01*eCCS_el(t18) - 0.01*eCCS_el(t19) - 0.01*eCCS_el(t20) - 0.01*eCCS_el(t21) - 0.01*eCCS_el(t22) - 0.01*eCCS_el(t23) - 0.01*eCCS_el(t24) - 0.01*eCCS_el(t25) - 0.01*eCCS_el(t26) - 0.01*eCCS_el(t27) - 0.01*eCCS_el(t28) - 0.01*eCCS_el(t29) - 0.01*eCCS_el(t30) - 100*CO2_ets(t1) - 100*CO2_ets(t2) - 100*CO2_ets(t3) - 100*CO2_ets(t4) - 100*CO2_ets(t5) - 100*CO2_ets(t6) - 100*CO2_ets(t7) - 100*CO2_ets(t8) - 100*CO2_ets(t9) - 100*CO2_ets(t10) - 100*CO2_ets(t11) - 100*CO2_ets(t12) - 100*CO2_ets(t13) - 100*CO2_ets(t14) - 100*CO2_ets(t15) - 100*CO2_ets(t16) - 100*CO2_ets(t17) - 100*CO2_ets(t18) - 100*CO2_ets(t19) - 100*CO2_ets(t20) - 100*CO2_ets(t21) - 100*CO2_ets(t22) - 100*CO2_ets(t23) - 100*CO2_ets(t24) - 100*CO2_ets(t25) - 100*CO2_ets(t26) - 100*CO2_ets(t27) - 100*CO2_ets(t28) - 100*CO2_ets(t29) - 100*CO2_ets(t30) + TotalCost =E= 300000 ; (LHS = 0, INFES = 300000 ****)
      
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 3
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 3
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
-Column Listing      SOLVE FeMn_SiMn_Opt Using LP From line 653
+Column Listing      SOLVE FeMn_SiMn_Opt Using LP From line 651
 
 
 ---- pFeMn  FeMn production (t)
@@ -2176,17 +2173,17 @@ REMAINING 27 ENTRIES SKIPPED
 CO2_ets(t1)
                 (.LO, .L, .UP, .M = 0, 0, +INF, 0)
         1       co2_ets_def(t1)
-     -115       obj
+     -100       obj
 
 CO2_ets(t2)
                 (.LO, .L, .UP, .M = 0, 0, +INF, 0)
         1       co2_ets_def(t2)
-     -132       obj
+     -100       obj
 
 CO2_ets(t3)
                 (.LO, .L, .UP, .M = 0, 0, +INF, 0)
         1       co2_ets_def(t3)
-     -149       obj
+     -100       obj
 
 REMAINING 27 ENTRIES SKIPPED
 
@@ -2196,9 +2193,9 @@ TotalCost
                 (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
         1       obj
 
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 4
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 4
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
-Range Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 653
+Range Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 651
 
 
 RANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)
@@ -2207,35 +2204,35 @@ RHS       [min, max] : [ 4.600E+02, 3.000E+05] - Zero values observed as well
 Bound     [min, max] : [        NA,        NA] - Zero values observed as well
 Matrix    [min, max] : [ 1.000E-02, 3.330E+04]
 
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 5
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 5
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
-Model Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 653
+Model Statistics    SOLVE FeMn_SiMn_Opt Using LP From line 651
 
 
 MODEL STATISTICS
 
 BLOCKS OF EQUATIONS          51     SINGLE EQUATIONS        2,689
 BLOCKS OF VARIABLES          44     SINGLE VARIABLES        3,031
-NON ZERO ELEMENTS         9,659
+NON ZERO ELEMENTS         9,653
 
 
-GENERATION TIME      =        0.016 SECONDS      5 MB  39.1.1 dbf03b78 WEX-WEI
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 6
+GENERATION TIME      =        0.328 SECONDS      5 MB  39.1.1 dbf03b78 WEX-WEI
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 6
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
-Solution Report     SOLVE FeMn_SiMn_Opt Using LP From line 653
+Solution Report     SOLVE FeMn_SiMn_Opt Using LP From line 651
 
 
                S O L V E      S U M M A R Y
 
      MODEL   FeMn_SiMn_Opt       OBJECTIVE  TotalCost
      TYPE    LP                  DIRECTION  MINIMIZE
-     SOLVER  CPLEX               FROM LINE  653
+     SOLVER  CPLEX               FROM LINE  651
 
 **** SOLVER STATUS     1 Normal Completion
 **** MODEL STATUS      1 Optimal
 **** OBJECTIVE VALUE       1459392219.5020
 
- RESOURCE USAGE, LIMIT          0.015 10000000000.000
+ RESOURCE USAGE, LIMIT          0.047 10000000000.000
  ITERATION COUNT, LIMIT       208    2147483647
 --- GAMS/Cplex licensed for continuous and discrete problems.
 --- GMO setup time: 0.00s
@@ -2248,7 +2245,7 @@ Solution Report     SOLVE FeMn_SiMn_Opt Using LP From line 653
 
 
 --- LP status (1): optimal.
---- Cplex Time: 0.00sec (det. 7.09 ticks)
+--- Cplex Time: 0.00sec (det. 6.96 ticks)
 
 
 Optimal solution found
@@ -2993,7 +2990,7 @@ s1.t6         -INF             .              .              .
 s1.t7         -INF      -3.949726E+7          .              .          
 s1.t8         -INF      -3.949726E+7          .              .          
 s1.t9         -INF      -3.949726E+7          .              .          
-s1.t10        -INF      -2.384220E+7          .              .          
+s1.t10        -INF      -3.949726E+7          .              .          
 s1.t11        -INF      -3.949726E+7          .              .          
 s1.t12        -INF      -3.949726E+7          .              .          
 s1.t13        -INF      -3.949726E+7          .              .          
@@ -3023,7 +3020,7 @@ s2.t6         -INF             .              .              .
 s2.t7         -INF             .              .              .          
 s2.t8         -INF             .              .              .          
 s2.t9         -INF             .              .              .          
-s2.t10        -INF      -1.565506E+7          .              .          
+s2.t10        -INF             .              .              .          
 s2.t11        -INF             .              .              .          
 s2.t12        -INF             .              .              .          
 s2.t13        -INF             .              .              .          
@@ -3421,7 +3418,7 @@ s1.t9 .biochar         -INF             .              .              .
 s1.t10.coke            -INF             .              .              .          
 s1.t10.COgas           -INF             .              .              .          
 s1.t10.hydrogen        -INF             .              .              .          
-s1.t10.natgas          -INF        -1715.3935          .              .          
+s1.t10.natgas          -INF        -2841.7403          .              .          
 s1.t10.biogas          -INF             .              .              .          
 s1.t10.biochar         -INF             .              .              .          
 s1.t11.coke            -INF             .              .              .          
@@ -3601,7 +3598,7 @@ s2.t9 .biochar         -INF             .              .              .
 s2.t10.coke            -INF             .              .              .          
 s2.t10.COgas           -INF             .              .              .          
 s2.t10.hydrogen        -INF             .              .              .          
-s2.t10.natgas          -INF        -1126.3468          .              .          
+s2.t10.natgas          -INF             .              .              .          
 s2.t10.biogas          -INF             .              .              .          
 s2.t10.biochar         -INF             .              .              .          
 s2.t11.coke            -INF             .              .              .          
@@ -4320,19 +4317,19 @@ s2.t30          .              .              .             0.0234
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1         -INF      -2.229309E+8          .              .          
-s1.t2         -INF             .              .              .          
+s1.t2         -INF      -5.081000E+8          .              .          
 s1.t3         -INF      -4.030718E+8          .              .          
 s1.t4         -INF      -1.776676E+8          .              .          
 s1.t5         -INF      -3.779356E+8          .              .          
-s1.t6         -INF             .              .              .          
+s1.t6         -INF      -5.285668E+8          .              .          
 s1.t7         -INF      -4.603374E+8          .              .          
 s1.t8         -INF      -4.647168E+8          .              .          
 s1.t9         -INF      -4.741664E+8          .              .          
-s1.t10        -INF      -5.002600E+8          .              .          
+s1.t10        -INF      -4.741664E+8          .              .          
 s1.t11        -INF      -4.741664E+8          .              .          
 s1.t12        -INF      -4.741664E+8          .              .          
 s1.t13        -INF      -4.741664E+8          .              .          
-s1.t14        -INF      -3.134655E+7          .              .          
+s1.t14        -INF      -4.741664E+8          .              .          
 s1.t15        -INF      -4.741664E+8          .              .          
 s1.t16        -INF      -4.741664E+8          .              .          
 s1.t17        -INF      -4.741664E+8          .              .          
@@ -4342,27 +4339,27 @@ s1.t20        -INF      -4.741664E+8          .              .
 s1.t21        -INF      -4.741664E+8          .              .          
 s1.t22        -INF      -4.741664E+8          .              .          
 s1.t23        -INF      -4.741664E+8          .              .          
-s1.t24        -INF      -2.090623E+8          .              .          
-s1.t25        -INF      -2.268342E+8          .              .          
-s1.t26        -INF      -2.446056E+8          .              .          
-s1.t27        -INF      -2.623775E+8          .              .          
-s1.t28        -INF      -2.801488E+8          .              .          
-s1.t29        -INF      -2.979202E+8          .              .          
-s1.t30        -INF      -3.156921E+8          .              .          
+s1.t24        -INF      -4.741664E+8          .              .          
+s1.t25        -INF      -4.741664E+8          .              .          
+s1.t26        -INF      -4.741664E+8          .              .          
+s1.t27        -INF      -4.741664E+8          .              .          
+s1.t28        -INF      -4.741664E+8          .              .          
+s1.t29        -INF      -4.741664E+8          .              .          
+s1.t30        -INF      -4.741664E+8          .              .          
 s2.t1         -INF      -7.680420E+7          .              .          
-s2.t2         -INF      -5.081000E+8          .              .          
+s2.t2         -INF             .              .              .          
 s2.t3         -INF             .              .              .          
 s2.t4         -INF             .              .              .          
 s2.t5         -INF             .              .              .          
-s2.t6         -INF      -5.285668E+8          .              .          
+s2.t6         -INF             .              .              .          
 s2.t7         -INF             .              .              .          
 s2.t8         -INF             .              .              .          
 s2.t9         -INF      -8.322300E+6          .              .          
-s2.t10        -INF             .              .              .          
+s2.t10        -INF      -2.609370E+7          .              .          
 s2.t11        -INF      -4.386555E+7          .              .          
 s2.t12        -INF      -6.163695E+7          .              .          
 s2.t13        -INF      -7.940880E+7          .              .          
-s2.t14        -INF      -5.400000E+8          .              .          
+s2.t14        -INF      -9.718020E+7          .              .          
 s2.t15        -INF      -1.149516E+8          .              .          
 s2.t16        -INF      -1.327234E+8          .              .          
 s2.t17        -INF      -1.504948E+8          .              .          
@@ -4372,13 +4369,13 @@ s2.t20        -INF      -2.038099E+8          .              .
 s2.t21        -INF      -2.215814E+8          .              .          
 s2.t22        -INF      -2.393527E+8          .              .          
 s2.t23        -INF      -2.571246E+8          .              .          
-s2.t24        -INF      -5.400000E+8          .              .          
-s2.t25        -INF      -5.400000E+8          .              .          
-s2.t26        -INF      -5.400000E+8          .              .          
-s2.t27        -INF      -5.400000E+8          .              .          
-s2.t28        -INF      -5.400000E+8          .              .          
-s2.t29        -INF      -5.400000E+8          .              .          
-s2.t30        -INF      -5.400000E+8          .              .          
+s2.t24        -INF      -2.748960E+8          .              .          
+s2.t25        -INF      -2.926678E+8          .              .          
+s2.t26        -INF      -3.104392E+8          .              .          
+s2.t27        -INF      -3.282111E+8          .              .          
+s2.t28        -INF      -3.459825E+8          .              .          
+s2.t29        -INF      -3.637539E+8          .              .          
+s2.t30        -INF      -3.815257E+8          .              .          
 
 ---- EQU e_saf_def  
 
@@ -4620,11 +4617,11 @@ t30          .              .              .             EPS
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1         -INF       120000.0000    120000.0000         EPS         
-s1.t2         -INF             .        120000.0000          .          
+s1.t2         -INF       112911.1000    120000.0000          .          
 s1.t3         -INF        95263.8000    120000.0000          .          
 s1.t4         -INF        39941.7000    120000.0000          .          
 s1.t5         -INF        83985.7000    120000.0000          .          
-s1.t6         -INF             .        120000.0000          .          
+s1.t6         -INF       117459.3000    120000.0000          .          
 s1.t7         -INF       116926.9000    120000.0000          .          
 s1.t8         -INF       117900.1000    120000.0000          .          
 s1.t9         -INF       120000.0000    120000.0000         EPS         
@@ -4632,7 +4629,7 @@ s1.t10        -INF       120000.0000    120000.0000         EPS
 s1.t11        -INF       120000.0000    120000.0000         EPS         
 s1.t12        -INF       120000.0000    120000.0000         EPS         
 s1.t13        -INF       120000.0000    120000.0000         EPS         
-s1.t14        -INF        21595.6000    120000.0000          .          
+s1.t14        -INF       120000.0000    120000.0000         EPS         
 s1.t15        -INF       120000.0000    120000.0000         EPS         
 s1.t16        -INF       120000.0000    120000.0000         EPS         
 s1.t17        -INF       120000.0000    120000.0000         EPS         
@@ -4642,19 +4639,19 @@ s1.t20        -INF       120000.0000    120000.0000         EPS
 s1.t21        -INF       120000.0000    120000.0000         EPS         
 s1.t22        -INF       120000.0000    120000.0000         EPS         
 s1.t23        -INF       120000.0000    120000.0000         EPS         
-s1.t24        -INF        61088.0000    120000.0000          .          
-s1.t25        -INF        65037.3000    120000.0000          .          
-s1.t26        -INF        68986.5000    120000.0000          .          
-s1.t27        -INF        72935.8000    120000.0000          .          
-s1.t28        -INF        76885.0000    120000.0000          .          
-s1.t29        -INF        80834.2000    120000.0000          .          
-s1.t30        -INF        84783.5000    120000.0000          .          
+s1.t24        -INF       120000.0000    120000.0000         EPS         
+s1.t25        -INF       120000.0000    120000.0000         EPS         
+s1.t26        -INF       120000.0000    120000.0000         EPS         
+s1.t27        -INF       120000.0000    120000.0000         EPS         
+s1.t28        -INF       120000.0000    120000.0000         EPS         
+s1.t29        -INF       120000.0000    120000.0000         EPS         
+s1.t30        -INF       120000.0000    120000.0000         EPS         
 s2.t1         -INF        17067.6000    120000.0000          .          
-s2.t2         -INF       112911.1000    120000.0000          .          
+s2.t2         -INF             .        120000.0000          .          
 s2.t3         -INF             .        120000.0000          .          
 s2.t4         -INF             .        120000.0000          .          
 s2.t5         -INF             .        120000.0000          .          
-s2.t6         -INF       117459.3000    120000.0000          .          
+s2.t6         -INF             .        120000.0000          .          
 s2.t7         -INF             .        120000.0000          .          
 s2.t8         -INF             .        120000.0000          .          
 s2.t9         -INF         1849.4000    120000.0000          .          
@@ -4662,7 +4659,7 @@ s2.t10        -INF         5798.6000    120000.0000          .
 s2.t11        -INF         9747.9000    120000.0000          .          
 s2.t12        -INF        13697.1000    120000.0000          .          
 s2.t13        -INF        17646.4000    120000.0000          .          
-s2.t14        -INF       120000.0000    120000.0000         EPS         
+s2.t14        -INF        21595.6000    120000.0000          .          
 s2.t15        -INF        25544.8000    120000.0000          .          
 s2.t16        -INF        29494.1000    120000.0000          .          
 s2.t17        -INF        33443.3000    120000.0000          .          
@@ -4672,13 +4669,13 @@ s2.t20        -INF        45291.1000    120000.0000          .
 s2.t21        -INF        49240.3000    120000.0000          .          
 s2.t22        -INF        53189.5000    120000.0000          .          
 s2.t23        -INF        57138.8000    120000.0000          .          
-s2.t24        -INF       120000.0000    120000.0000         EPS         
-s2.t25        -INF       120000.0000    120000.0000         EPS         
-s2.t26        -INF       120000.0000    120000.0000         EPS         
-s2.t27        -INF       120000.0000    120000.0000         EPS         
-s2.t28        -INF       120000.0000    120000.0000         EPS         
-s2.t29        -INF       120000.0000    120000.0000         EPS         
-s2.t30        -INF       120000.0000    120000.0000         EPS         
+s2.t24        -INF        61088.0000    120000.0000          .          
+s2.t25        -INF        65037.3000    120000.0000          .          
+s2.t26        -INF        68986.5000    120000.0000          .          
+s2.t27        -INF        72935.8000    120000.0000          .          
+s2.t28        -INF        76885.0000    120000.0000          .          
+s2.t29        -INF        80834.2000    120000.0000          .          
+s2.t30        -INF        84783.5000    120000.0000          .          
 
 ---- EQU capacity_sinter  
 
@@ -5210,7 +5207,7 @@ s1.t6           .              .            +INF             .
 s1.t7           .         14629.7000        +INF             .          
 s1.t8           .         14629.7000        +INF             .          
 s1.t9           .         14629.7000        +INF             .          
-s1.t10          .          8831.1000        +INF             .          
+s1.t10          .         14629.7000        +INF             .          
 s1.t11          .         14629.7000        +INF             .          
 s1.t12          .         14629.7000        +INF             .          
 s1.t13          .         14629.7000        +INF             .          
@@ -5240,7 +5237,7 @@ s2.t6           .              .            +INF             .
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .              .            +INF             .          
-s2.t10          .          5798.6000        +INF             .          
+s2.t10          .              .            +INF             .          
 s2.t11          .              .            +INF             .          
 s2.t12          .              .            +INF             .          
 s2.t13          .              .            +INF             .          
@@ -5267,19 +5264,19 @@ s2.t30          .              .            +INF             .
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .         49540.2000        +INF             .          
-s1.t2           .              .            +INF             .          
+s1.t2           .        112911.1000        +INF             .          
 s1.t3           .         89571.5000        +INF             .          
 s1.t4           .         39481.7000        +INF             .          
 s1.t5           .         83985.7000        +INF             .          
-s1.t6           .              .            +INF             .          
+s1.t6           .        117459.3000        +INF             .          
 s1.t7           .        102297.2000        +INF             .          
 s1.t8           .        103270.4000        +INF             .          
 s1.t9           .        105370.3000        +INF             .          
-s1.t10          .        111168.9000        +INF             .          
+s1.t10          .        105370.3000        +INF             .          
 s1.t11          .        105370.3000        +INF             .          
 s1.t12          .        105370.3000        +INF             .          
 s1.t13          .        105370.3000        +INF             .          
-s1.t14          .          6965.9000        +INF             .          
+s1.t14          .        105370.3000        +INF             .          
 s1.t15          .        105370.3000        +INF             .          
 s1.t16          .        105370.3000        +INF             .          
 s1.t17          .        105370.3000        +INF             .          
@@ -5289,27 +5286,27 @@ s1.t20          .        105370.3000        +INF             .
 s1.t21          .        105370.3000        +INF             .          
 s1.t22          .        105370.3000        +INF             .          
 s1.t23          .        105370.3000        +INF             .          
-s1.t24          .         46458.3000        +INF             .          
-s1.t25          .         50407.6000        +INF             .          
-s1.t26          .         54356.8000        +INF             .          
-s1.t27          .         58306.1000        +INF             .          
-s1.t28          .         62255.3000        +INF             .          
-s1.t29          .         66204.5000        +INF             .          
-s1.t30          .         70153.8000        +INF             .          
+s1.t24          .        105370.3000        +INF             .          
+s1.t25          .        105370.3000        +INF             .          
+s1.t26          .        105370.3000        +INF             .          
+s1.t27          .        105370.3000        +INF             .          
+s1.t28          .        105370.3000        +INF             .          
+s1.t29          .        105370.3000        +INF             .          
+s1.t30          .        105370.3000        +INF             .          
 s2.t1           .         17067.6000        +INF             .          
-s2.t2           .        112911.1000        +INF             .          
+s2.t2           .              .            +INF             .          
 s2.t3           .              .            +INF             .          
 s2.t4           .              .            +INF             .          
 s2.t5           .              .            +INF             .          
-s2.t6           .        117459.3000        +INF             .          
+s2.t6           .              .            +INF             .          
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .          1849.4000        +INF             .          
-s2.t10          .              .            +INF             .          
+s2.t10          .          5798.6000        +INF             .          
 s2.t11          .          9747.9000        +INF             .          
 s2.t12          .         13697.1000        +INF             .          
 s2.t13          .         17646.4000        +INF             .          
-s2.t14          .        120000.0000        +INF             .          
+s2.t14          .         21595.6000        +INF             .          
 s2.t15          .         25544.8000        +INF             .          
 s2.t16          .         29494.1000        +INF             .          
 s2.t17          .         33443.3000        +INF             .          
@@ -5319,13 +5316,13 @@ s2.t20          .         45291.1000        +INF             .
 s2.t21          .         49240.3000        +INF             .          
 s2.t22          .         53189.5000        +INF             .          
 s2.t23          .         57138.8000        +INF             .          
-s2.t24          .        120000.0000        +INF             .          
-s2.t25          .        120000.0000        +INF             .          
-s2.t26          .        120000.0000        +INF             .          
-s2.t27          .        120000.0000        +INF             .          
-s2.t28          .        120000.0000        +INF             .          
-s2.t29          .        120000.0000        +INF             .          
-s2.t30          .        120000.0000        +INF             .          
+s2.t24          .         61088.0000        +INF             .          
+s2.t25          .         65037.3000        +INF             .          
+s2.t26          .         68986.5000        +INF             .          
+s2.t27          .         72935.8000        +INF             .          
+s2.t28          .         76885.0000        +INF             .          
+s2.t29          .         80834.2000        +INF             .          
+s2.t30          .         84783.5000        +INF             .          
 
 ---- VAR pSinter  sinter production (t)
 
@@ -5445,7 +5442,7 @@ s1.t6           .              .            +INF             .
 s1.t7           .         26333.4600        +INF             .          
 s1.t8           .         26333.4600        +INF             .          
 s1.t9           .         26333.4600        +INF             .          
-s1.t10          .         15895.9800        +INF             .          
+s1.t10          .         26333.4600        +INF             .          
 s1.t11          .         26333.4600        +INF             .          
 s1.t12          .         26333.4600        +INF             .          
 s1.t13          .         26333.4600        +INF             .          
@@ -5475,7 +5472,7 @@ s2.t6           .              .            +INF             .
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .              .            +INF             .          
-s2.t10          .         10437.4800        +INF             .          
+s2.t10          .              .            +INF             .          
 s2.t11          .              .            +INF             .          
 s2.t12          .              .            +INF             .          
 s2.t13          .              .            +INF             .          
@@ -5632,19 +5629,19 @@ s2.t30          .              .            +INF           13.1655
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .         49540.2000        +INF             .          
-s1.t2           .              .            +INF      2.842171E-14      
+s1.t2           .        112911.1000        +INF             .          
 s1.t3           .         89571.5000        +INF             .          
 s1.t4           .         39481.7000        +INF             .          
 s1.t5           .         83985.7000        +INF             .          
-s1.t6           .              .            +INF      2.842171E-14      
+s1.t6           .        117459.3000        +INF             .          
 s1.t7           .        102297.2000        +INF             .          
 s1.t8           .        103270.4000        +INF             .          
 s1.t9           .        105370.3000        +INF             .          
-s1.t10          .        111168.9000        +INF             .          
+s1.t10          .        105370.3000        +INF             .          
 s1.t11          .        105370.3000        +INF             .          
 s1.t12          .        105370.3000        +INF             .          
 s1.t13          .        105370.3000        +INF             .          
-s1.t14          .          6965.9000        +INF             .          
+s1.t14          .        105370.3000        +INF             .          
 s1.t15          .        105370.3000        +INF             .          
 s1.t16          .        105370.3000        +INF             .          
 s1.t17          .        105370.3000        +INF             .          
@@ -5654,27 +5651,27 @@ s1.t20          .        105370.3000        +INF             .
 s1.t21          .        105370.3000        +INF             .          
 s1.t22          .        105370.3000        +INF             .          
 s1.t23          .        105370.3000        +INF             .          
-s1.t24          .         46458.3000        +INF             .          
-s1.t25          .         50407.6000        +INF             .          
-s1.t26          .         54356.8000        +INF             .          
-s1.t27          .         58306.1000        +INF             .          
-s1.t28          .         62255.3000        +INF             .          
-s1.t29          .         66204.5000        +INF             .          
-s1.t30          .         70153.8000        +INF             .          
+s1.t24          .        105370.3000        +INF             .          
+s1.t25          .        105370.3000        +INF             .          
+s1.t26          .        105370.3000        +INF             .          
+s1.t27          .        105370.3000        +INF             .          
+s1.t28          .        105370.3000        +INF             .          
+s1.t29          .        105370.3000        +INF             .          
+s1.t30          .        105370.3000        +INF             .          
 s2.t1           .         17067.6000        +INF             .          
-s2.t2           .        112911.1000        +INF             .          
+s2.t2           .              .            +INF      2.842171E-14      
 s2.t3           .              .            +INF      2.842171E-14      
 s2.t4           .              .            +INF      2.842171E-14      
 s2.t5           .              .            +INF      2.842171E-14      
-s2.t6           .        117459.3000        +INF             .          
+s2.t6           .              .            +INF      2.842171E-14      
 s2.t7           .              .            +INF      2.842171E-14      
 s2.t8           .              .            +INF      2.842171E-14      
 s2.t9           .          1849.4000        +INF             .          
-s2.t10          .              .            +INF             .          
+s2.t10          .          5798.6000        +INF             .          
 s2.t11          .          9747.9000        +INF             .          
 s2.t12          .         13697.1000        +INF             .          
 s2.t13          .         17646.4000        +INF             .          
-s2.t14          .        120000.0000        +INF             .          
+s2.t14          .         21595.6000        +INF             .          
 s2.t15          .         25544.8000        +INF             .          
 s2.t16          .         29494.1000        +INF             .          
 s2.t17          .         33443.3000        +INF             .          
@@ -5684,13 +5681,13 @@ s2.t20          .         45291.1000        +INF             .
 s2.t21          .         49240.3000        +INF             .          
 s2.t22          .         53189.5000        +INF             .          
 s2.t23          .         57138.8000        +INF             .          
-s2.t24          .        120000.0000        +INF             .          
-s2.t25          .        120000.0000        +INF             .          
-s2.t26          .        120000.0000        +INF             .          
-s2.t27          .        120000.0000        +INF             .          
-s2.t28          .        120000.0000        +INF             .          
-s2.t29          .        120000.0000        +INF             .          
-s2.t30          .        120000.0000        +INF             .          
+s2.t24          .         61088.0000        +INF             .          
+s2.t25          .         65037.3000        +INF             .          
+s2.t26          .         68986.5000        +INF             .          
+s2.t27          .         72935.8000        +INF             .          
+s2.t28          .         76885.0000        +INF             .          
+s2.t29          .         80834.2000        +INF             .          
+s2.t30          .         84783.5000        +INF             .          
 
 ---- VAR uSinterSiMn_Si  sinter to SiMn via Si route (t)
 
@@ -5827,19 +5824,19 @@ s2.t30          .              .            +INF            EPS
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .         19816.0800        +INF             .          
-s1.t2           .              .            +INF             .          
+s1.t2           .         45164.4400        +INF             .          
 s1.t3           .         35828.6000        +INF             .          
 s1.t4           .         15792.6800        +INF             .          
 s1.t5           .         33594.2800        +INF             .          
-s1.t6           .              .            +INF             .          
+s1.t6           .         46983.7200        +INF             .          
 s1.t7           .         40918.8800        +INF             .          
 s1.t8           .         41308.1600        +INF             .          
 s1.t9           .         42148.1200        +INF             .          
-s1.t10          .         44467.5600        +INF             .          
+s1.t10          .         42148.1200        +INF             .          
 s1.t11          .         42148.1200        +INF             .          
 s1.t12          .         42148.1200        +INF             .          
 s1.t13          .         42148.1200        +INF             .          
-s1.t14          .          2786.3600        +INF             .          
+s1.t14          .         42148.1200        +INF             .          
 s1.t15          .         42148.1200        +INF             .          
 s1.t16          .         42148.1200        +INF             .          
 s1.t17          .         42148.1200        +INF             .          
@@ -5849,27 +5846,27 @@ s1.t20          .         42148.1200        +INF             .
 s1.t21          .         42148.1200        +INF             .          
 s1.t22          .         42148.1200        +INF             .          
 s1.t23          .         42148.1200        +INF             .          
-s1.t24          .         18583.3200        +INF             .          
-s1.t25          .         20163.0400        +INF             .          
-s1.t26          .         21742.7200        +INF             .          
-s1.t27          .         23322.4400        +INF             .          
-s1.t28          .         24902.1200        +INF             .          
-s1.t29          .         26481.8000        +INF             .          
-s1.t30          .         28061.5200        +INF             .          
+s1.t24          .         42148.1200        +INF             .          
+s1.t25          .         42148.1200        +INF             .          
+s1.t26          .         42148.1200        +INF             .          
+s1.t27          .         42148.1200        +INF             .          
+s1.t28          .         42148.1200        +INF             .          
+s1.t29          .         42148.1200        +INF             .          
+s1.t30          .         42148.1200        +INF             .          
 s2.t1           .          6827.0400        +INF             .          
-s2.t2           .         45164.4400        +INF             .          
+s2.t2           .              .            +INF             .          
 s2.t3           .              .            +INF             .          
 s2.t4           .              .            +INF             .          
 s2.t5           .              .            +INF             .          
-s2.t6           .         46983.7200        +INF             .          
+s2.t6           .              .            +INF             .          
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .           739.7600        +INF             .          
-s2.t10          .              .            +INF             .          
+s2.t10          .          2319.4400        +INF             .          
 s2.t11          .          3899.1600        +INF             .          
 s2.t12          .          5478.8400        +INF             .          
 s2.t13          .          7058.5600        +INF             .          
-s2.t14          .         48000.0000        +INF             .          
+s2.t14          .          8638.2400        +INF             .          
 s2.t15          .         10217.9200        +INF             .          
 s2.t16          .         11797.6400        +INF             .          
 s2.t17          .         13377.3200        +INF             .          
@@ -5879,13 +5876,13 @@ s2.t20          .         18116.4400        +INF             .
 s2.t21          .         19696.1200        +INF             .          
 s2.t22          .         21275.8000        +INF             .          
 s2.t23          .         22855.5200        +INF             .          
-s2.t24          .         48000.0000        +INF             .          
-s2.t25          .         48000.0000        +INF             .          
-s2.t26          .         48000.0000        +INF             .          
-s2.t27          .         48000.0000        +INF             .          
-s2.t28          .         48000.0000        +INF             .          
-s2.t29          .         48000.0000        +INF             .          
-s2.t30          .         48000.0000        +INF             .          
+s2.t24          .         24435.2000        +INF             .          
+s2.t25          .         26014.9200        +INF             .          
+s2.t26          .         27594.6000        +INF             .          
+s2.t27          .         29174.3200        +INF             .          
+s2.t28          .         30754.0000        +INF             .          
+s2.t29          .         32333.6800        +INF             .          
+s2.t30          .         33913.4000        +INF             .          
 
 ---- VAR bSi  silicon bought for SiMn via Si (t)
 
@@ -5957,19 +5954,19 @@ s2.t30          .              .            +INF             .
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .       4.2374133E+8        +INF             .          
-s1.t2           .              .            +INF             .          
+s1.t2           .       5.0809995E+8        +INF             .          
 s1.t3           .       4.1929480E+8        +INF             .          
 s1.t4           .       1.7897865E+8        +INF             .          
 s1.t5           .       3.7793565E+8        +INF             .          
-s1.t6           .              .            +INF             .          
+s1.t6           .       5.2856685E+8        +INF             .          
 s1.t7           .       5.0203204E+8        +INF             .          
 s1.t8           .       5.0641144E+8        +INF             .          
 s1.t9           .       5.1586100E+8        +INF             .          
-s1.t10          .       5.2542868E+8        +INF             .          
+s1.t10          .       5.1586100E+8        +INF             .          
 s1.t11          .       5.1586100E+8        +INF             .          
 s1.t12          .       5.1586100E+8        +INF             .          
 s1.t13          .       5.1586100E+8        +INF             .          
-s1.t14          .       7.3041195E+7        +INF             .          
+s1.t14          .       5.1586100E+8        +INF             .          
 s1.t15          .       5.1586100E+8        +INF             .          
 s1.t16          .       5.1586100E+8        +INF             .          
 s1.t17          .       5.1586100E+8        +INF             .          
@@ -5979,27 +5976,27 @@ s1.t20          .       5.1586100E+8        +INF             .
 s1.t21          .       5.1586100E+8        +INF             .          
 s1.t22          .       5.1586100E+8        +INF             .          
 s1.t23          .       5.1586100E+8        +INF             .          
-s1.t24          .       2.5075699E+8        +INF             .          
-s1.t25          .       2.6852884E+8        +INF             .          
-s1.t26          .       2.8630024E+8        +INF             .          
-s1.t27          .       3.0407210E+8        +INF             .          
-s1.t28          .       3.2184349E+8        +INF             .          
-s1.t29          .       3.3961490E+8        +INF             .          
-s1.t30          .       3.5738674E+8        +INF             .          
+s1.t24          .       5.1586100E+8        +INF             .          
+s1.t25          .       5.1586100E+8        +INF             .          
+s1.t26          .       5.1586100E+8        +INF             .          
+s1.t27          .       5.1586100E+8        +INF             .          
+s1.t28          .       5.1586100E+8        +INF             .          
+s1.t29          .       5.1586100E+8        +INF             .          
+s1.t30          .       5.1586100E+8        +INF             .          
 s2.t1           .       7.6804200E+7        +INF             .          
-s2.t2           .       5.0809995E+8        +INF             .          
+s2.t2           .              .            +INF             .          
 s2.t3           .              .            +INF             .          
 s2.t4           .              .            +INF             .          
 s2.t5           .              .            +INF             .          
-s2.t6           .       5.2856685E+8        +INF             .          
+s2.t6           .              .            +INF             .          
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .       8322300.0000        +INF             .          
-s2.t10          .       1.6526010E+7        +INF             .          
+s2.t10          .       2.6093700E+7        +INF             .          
 s2.t11          .       4.3865550E+7        +INF             .          
 s2.t12          .       6.1636950E+7        +INF             .          
 s2.t13          .       7.9408800E+7        +INF             .          
-s2.t14          .       5.4000000E+8        +INF             .          
+s2.t14          .       9.7180200E+7        +INF             .          
 s2.t15          .       1.1495160E+8        +INF             .          
 s2.t16          .       1.3272345E+8        +INF             .          
 s2.t17          .       1.5049485E+8        +INF             .          
@@ -6009,13 +6006,13 @@ s2.t20          .       2.0380995E+8        +INF             .
 s2.t21          .       2.2158135E+8        +INF             .          
 s2.t22          .       2.3935275E+8        +INF             .          
 s2.t23          .       2.5712460E+8        +INF             .          
-s2.t24          .       5.4000000E+8        +INF             .          
-s2.t25          .       5.4000000E+8        +INF             .          
-s2.t26          .       5.4000000E+8        +INF             .          
-s2.t27          .       5.4000000E+8        +INF             .          
-s2.t28          .       5.4000000E+8        +INF             .          
-s2.t29          .       5.4000000E+8        +INF             .          
-s2.t30          .       5.4000000E+8        +INF             .          
+s2.t24          .       2.7489600E+8        +INF             .          
+s2.t25          .       2.9266785E+8        +INF             .          
+s2.t26          .       3.1043925E+8        +INF             .          
+s2.t27          .       3.2821110E+8        +INF             .          
+s2.t28          .       3.4598250E+8        +INF             .          
+s2.t29          .       3.6375390E+8        +INF             .          
+s2.t30          .       3.8152575E+8        +INF             .          
 
 ---- VAR eSint  sinter electricity (kWh)
 
@@ -6130,7 +6127,7 @@ s1.t6           .              .            +INF            0.1650
 s1.t7           .       3.9500190E+7        +INF             .          
 s1.t8           .       3.9500190E+7        +INF             .          
 s1.t9           .       3.9500190E+7        +INF             .          
-s1.t10          .       2.3843970E+7        +INF             .          
+s1.t10          .       3.9500190E+7        +INF             .          
 s1.t11          .       3.9500190E+7        +INF             .          
 s1.t12          .       3.9500190E+7        +INF             .          
 s1.t13          .       3.9500190E+7        +INF             .          
@@ -6160,7 +6157,7 @@ s2.t6           .              .            +INF            0.1650
 s2.t7           .              .            +INF      -1.04083E-17      
 s2.t8           .              .            +INF      -1.04083E-17      
 s2.t9           .              .            +INF      -1.04083E-17      
-s2.t10          .       1.5656220E+7        +INF             .          
+s2.t10          .              .            +INF      1.040834E-17      
 s2.t11          .              .            +INF      1.040834E-17      
 s2.t12          .              .            +INF      1.040834E-17      
 s2.t13          .              .            +INF      1.040834E-17      
@@ -6252,19 +6249,19 @@ s2.t30          .              .            +INF             .
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .       2.2293090E+8        +INF             .          
-s1.t2           .              .            +INF             .          
+s1.t2           .       5.0809995E+8        +INF             .          
 s1.t3           .       4.0307175E+8        +INF             .          
 s1.t4           .       1.7766765E+8        +INF             .          
 s1.t5           .       3.7793565E+8        +INF             .          
-s1.t6           .              .            +INF             .          
+s1.t6           .       5.2856685E+8        +INF             .          
 s1.t7           .       4.6033740E+8        +INF             .          
 s1.t8           .       4.6471680E+8        +INF             .          
 s1.t9           .       4.7416635E+8        +INF             .          
-s1.t10          .       5.0026005E+8        +INF             .          
+s1.t10          .       4.7416635E+8        +INF             .          
 s1.t11          .       4.7416635E+8        +INF             .          
 s1.t12          .       4.7416635E+8        +INF             .          
 s1.t13          .       4.7416635E+8        +INF             .          
-s1.t14          .       3.1346550E+7        +INF             .          
+s1.t14          .       4.7416635E+8        +INF             .          
 s1.t15          .       4.7416635E+8        +INF             .          
 s1.t16          .       4.7416635E+8        +INF             .          
 s1.t17          .       4.7416635E+8        +INF             .          
@@ -6274,27 +6271,27 @@ s1.t20          .       4.7416635E+8        +INF             .
 s1.t21          .       4.7416635E+8        +INF             .          
 s1.t22          .       4.7416635E+8        +INF             .          
 s1.t23          .       4.7416635E+8        +INF             .          
-s1.t24          .       2.0906235E+8        +INF             .          
-s1.t25          .       2.2683420E+8        +INF             .          
-s1.t26          .       2.4460560E+8        +INF             .          
-s1.t27          .       2.6237745E+8        +INF             .          
-s1.t28          .       2.8014885E+8        +INF             .          
-s1.t29          .       2.9792025E+8        +INF             .          
-s1.t30          .       3.1569210E+8        +INF             .          
+s1.t24          .       4.7416635E+8        +INF             .          
+s1.t25          .       4.7416635E+8        +INF             .          
+s1.t26          .       4.7416635E+8        +INF             .          
+s1.t27          .       4.7416635E+8        +INF             .          
+s1.t28          .       4.7416635E+8        +INF             .          
+s1.t29          .       4.7416635E+8        +INF             .          
+s1.t30          .       4.7416635E+8        +INF             .          
 s2.t1           .       7.6804200E+7        +INF             .          
-s2.t2           .       5.0809995E+8        +INF             .          
+s2.t2           .              .            +INF             .          
 s2.t3           .              .            +INF             .          
 s2.t4           .              .            +INF             .          
 s2.t5           .              .            +INF             .          
-s2.t6           .       5.2856685E+8        +INF             .          
+s2.t6           .              .            +INF             .          
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .       8322300.0000        +INF             .          
-s2.t10          .              .            +INF             .          
+s2.t10          .       2.6093700E+7        +INF             .          
 s2.t11          .       4.3865550E+7        +INF             .          
 s2.t12          .       6.1636950E+7        +INF             .          
 s2.t13          .       7.9408800E+7        +INF             .          
-s2.t14          .       5.4000000E+8        +INF             .          
+s2.t14          .       9.7180200E+7        +INF             .          
 s2.t15          .       1.1495160E+8        +INF             .          
 s2.t16          .       1.3272345E+8        +INF             .          
 s2.t17          .       1.5049485E+8        +INF             .          
@@ -6304,13 +6301,13 @@ s2.t20          .       2.0380995E+8        +INF             .
 s2.t21          .       2.2158135E+8        +INF             .          
 s2.t22          .       2.3935275E+8        +INF             .          
 s2.t23          .       2.5712460E+8        +INF             .          
-s2.t24          .       5.4000000E+8        +INF             .          
-s2.t25          .       5.4000000E+8        +INF             .          
-s2.t26          .       5.4000000E+8        +INF             .          
-s2.t27          .       5.4000000E+8        +INF             .          
-s2.t28          .       5.4000000E+8        +INF             .          
-s2.t29          .       5.4000000E+8        +INF             .          
-s2.t30          .       5.4000000E+8        +INF             .          
+s2.t24          .       2.7489600E+8        +INF             .          
+s2.t25          .       2.9266785E+8        +INF             .          
+s2.t26          .       3.1043925E+8        +INF             .          
+s2.t27          .       3.2821110E+8        +INF             .          
+s2.t28          .       3.4598250E+8        +INF             .          
+s2.t29          .       3.6375390E+8        +INF             .          
+s2.t30          .       3.8152575E+8        +INF             .          
 
 ---- VAR LT_sint  LT heat in sinter (kWh)
 
@@ -6473,7 +6470,7 @@ s1.t10.woodchips          .              .            +INF           90.0626
 s1.t10.coke               .              .            +INF          272.6903      
 s1.t10.COgas              .              .            +INF          589.1421      
 s1.t10.hydrogen           .              .            +INF         1446.5777      
-s1.t10.natgas             .          1715.3935        +INF             .          
+s1.t10.natgas             .          2841.7403        +INF             .          
 s1.t10.biogas             .              .            +INF           14.2802      
 s1.t10.biochar            .              .            +INF          198.4853      
 s1.t11.oil                .              .            +INF          397.8284      
@@ -6743,7 +6740,7 @@ s2.t10.woodchips          .              .            +INF           90.0626
 s2.t10.coke               .              .            +INF          272.6903      
 s2.t10.COgas              .              .            +INF          589.1421      
 s2.t10.hydrogen           .              .            +INF         1446.5777      
-s2.t10.natgas             .          1126.3468        +INF             .          
+s2.t10.natgas             .              .            +INF             .          
 s2.t10.biogas             .              .            +INF           14.2802      
 s2.t10.biochar            .              .            +INF          198.4853      
 s2.t11.oil                .              .            +INF          397.8284      
@@ -6946,7 +6943,7 @@ s1.t2 .woodchips          .              .            +INF          119.9568
 s1.t2 .coke               .              .            +INF          288.1619      
 s1.t2 .COgas              .              .            +INF          619.2986      
 s1.t2 .hydrogen           .              .            +INF         1395.7050      
-s1.t2 .natgas             .              .            +INF             .          
+s1.t2 .natgas             .         36553.9532        +INF             .          
 s1.t2 .biogas             .              .            +INF           34.9964      
 s1.t2 .biochar            .              .            +INF          216.5791      
 s1.t3 .oil                .              .            +INF          403.8597      
@@ -6982,7 +6979,7 @@ s1.t6 .woodchips          .              .            +INF          119.9568
 s1.t6 .coke               .              .            +INF          288.1619      
 s1.t6 .COgas              .              .            +INF          619.2986      
 s1.t6 .hydrogen           .              .            +INF         1395.7050      
-s1.t6 .natgas             .              .            +INF             .          
+s1.t6 .natgas             .         38026.3921        +INF             .          
 s1.t6 .biogas             .              .            +INF           34.9964      
 s1.t6 .biochar            .              .            +INF          216.5791      
 s1.t7 .oil                .              .            +INF          403.8597      
@@ -7018,7 +7015,7 @@ s1.t10.woodchips          .              .            +INF           90.0626
 s1.t10.coke               .              .            +INF          272.6903      
 s1.t10.COgas              .              .            +INF          589.1421      
 s1.t10.hydrogen           .              .            +INF         1446.5777      
-s1.t10.natgas             .         35989.9317        +INF             .          
+s1.t10.natgas             .         34112.6871        +INF             .          
 s1.t10.biogas             .              .            +INF           14.2802      
 s1.t10.biochar            .              .            +INF          198.4853      
 s1.t11.oil                .              .            +INF          397.8284      
@@ -7054,7 +7051,7 @@ s1.t14.woodchips          .              .            +INF          119.9568
 s1.t14.coke               .              .            +INF          288.1619      
 s1.t14.COgas              .              .            +INF          619.2986      
 s1.t14.hydrogen           .              .            +INF         1395.7050      
-s1.t14.natgas             .          2255.1475        +INF             .          
+s1.t14.natgas             .         34112.6871        +INF             .          
 s1.t14.biogas             .              .            +INF           34.9964      
 s1.t14.biochar            .              .            +INF          216.5791      
 s1.t15.oil                .              .            +INF          397.8284      
@@ -7144,7 +7141,7 @@ s1.t24.woodchips          .              .            +INF          119.9568
 s1.t24.coke               .              .            +INF          288.1619      
 s1.t24.COgas              .              .            +INF          619.2986      
 s1.t24.hydrogen           .              .            +INF         1395.7050      
-s1.t24.natgas             .         15040.4568        +INF             .          
+s1.t24.natgas             .         34112.6871        +INF             .          
 s1.t24.biogas             .              .            +INF           34.9964      
 s1.t24.biochar            .              .            +INF          216.5791      
 s1.t25.oil                .              .            +INF          403.8597      
@@ -7153,7 +7150,7 @@ s1.t25.woodchips          .              .            +INF          119.9568
 s1.t25.coke               .              .            +INF          288.1619      
 s1.t25.COgas              .              .            +INF          619.2986      
 s1.t25.hydrogen           .              .            +INF         1395.7050      
-s1.t25.natgas             .         16319.0072        +INF             .          
+s1.t25.natgas             .         34112.6871        +INF             .          
 s1.t25.biogas             .              .            +INF           34.9964      
 s1.t25.biochar            .              .            +INF          216.5791      
 s1.t26.oil                .              .            +INF          403.8597      
@@ -7162,7 +7159,7 @@ s1.t26.woodchips          .              .            +INF          119.9568
 s1.t26.coke               .              .            +INF          288.1619      
 s1.t26.COgas              .              .            +INF          619.2986      
 s1.t26.hydrogen           .              .            +INF         1395.7050      
-s1.t26.natgas             .         17597.5252        +INF             .          
+s1.t26.natgas             .         34112.6871        +INF             .          
 s1.t26.biogas             .              .            +INF           34.9964      
 s1.t26.biochar            .              .            +INF          216.5791      
 s1.t27.oil                .              .            +INF          403.8597      
@@ -7171,7 +7168,7 @@ s1.t27.woodchips          .              .            +INF          119.9568
 s1.t27.coke               .              .            +INF          288.1619      
 s1.t27.COgas              .              .            +INF          619.2986      
 s1.t27.hydrogen           .              .            +INF         1395.7050      
-s1.t27.natgas             .         18876.0755        +INF             .          
+s1.t27.natgas             .         34112.6871        +INF             .          
 s1.t27.biogas             .              .            +INF           34.9964      
 s1.t27.biochar            .              .            +INF          216.5791      
 s1.t28.oil                .              .            +INF          403.8597      
@@ -7180,7 +7177,7 @@ s1.t28.woodchips          .              .            +INF          119.9568
 s1.t28.coke               .              .            +INF          288.1619      
 s1.t28.COgas              .              .            +INF          619.2986      
 s1.t28.hydrogen           .              .            +INF         1395.7050      
-s1.t28.natgas             .         20154.5935        +INF             .          
+s1.t28.natgas             .         34112.6871        +INF             .          
 s1.t28.biogas             .              .            +INF           34.9964      
 s1.t28.biochar            .              .            +INF          216.5791      
 s1.t29.oil                .              .            +INF          403.8597      
@@ -7189,7 +7186,7 @@ s1.t29.woodchips          .              .            +INF          119.9568
 s1.t29.coke               .              .            +INF          288.1619      
 s1.t29.COgas              .              .            +INF          619.2986      
 s1.t29.hydrogen           .              .            +INF         1395.7050      
-s1.t29.natgas             .         21433.1115        +INF             .          
+s1.t29.natgas             .         34112.6871        +INF             .          
 s1.t29.biogas             .              .            +INF           34.9964      
 s1.t29.biochar            .              .            +INF          216.5791      
 s1.t30.oil                .              .            +INF          403.8597      
@@ -7198,7 +7195,7 @@ s1.t30.woodchips          .              .            +INF          119.9568
 s1.t30.coke               .              .            +INF          288.1619      
 s1.t30.COgas              .              .            +INF          619.2986      
 s1.t30.hydrogen           .              .            +INF         1395.7050      
-s1.t30.natgas             .         22711.6619        +INF             .          
+s1.t30.natgas             .         34112.6871        +INF             .          
 s1.t30.biogas             .              .            +INF           34.9964      
 s1.t30.biochar            .              .            +INF          216.5791      
 s2.t1 .oil                .              .            +INF          403.8597      
@@ -7216,7 +7213,7 @@ s2.t2 .woodchips          .              .            +INF          119.9568
 s2.t2 .coke               .              .            +INF          288.1619      
 s2.t2 .COgas              .              .            +INF          619.2986      
 s2.t2 .hydrogen           .              .            +INF         1395.7050      
-s2.t2 .natgas             .         36553.9532        +INF             .          
+s2.t2 .natgas             .              .            +INF             .          
 s2.t2 .biogas             .              .            +INF           34.9964      
 s2.t2 .biochar            .              .            +INF          216.5791      
 s2.t3 .oil                .              .            +INF          403.8597      
@@ -7252,7 +7249,7 @@ s2.t6 .woodchips          .              .            +INF          119.9568
 s2.t6 .coke               .              .            +INF          288.1619      
 s2.t6 .COgas              .              .            +INF          619.2986      
 s2.t6 .hydrogen           .              .            +INF         1395.7050      
-s2.t6 .natgas             .         38026.3921        +INF             .          
+s2.t6 .natgas             .              .            +INF             .          
 s2.t6 .biogas             .              .            +INF           34.9964      
 s2.t6 .biochar            .              .            +INF          216.5791      
 s2.t7 .oil                .              .            +INF          403.8597      
@@ -7288,7 +7285,7 @@ s2.t10.woodchips          .              .            +INF           90.0626
 s2.t10.coke               .              .            +INF          272.6903      
 s2.t10.COgas              .              .            +INF          589.1421      
 s2.t10.hydrogen           .              .            +INF         1446.5777      
-s2.t10.natgas             .              .            +INF      -1.13687E-13      
+s2.t10.natgas             .          1877.2446        +INF             .          
 s2.t10.biogas             .              .            +INF           14.2802      
 s2.t10.biochar            .              .            +INF          198.4853      
 s2.t11.oil                .              .            +INF          397.8284      
@@ -7324,7 +7321,7 @@ s2.t14.woodchips          .              .            +INF          119.9568
 s2.t14.coke               .              .            +INF          288.1619      
 s2.t14.COgas              .              .            +INF          619.2986      
 s2.t14.hydrogen           .              .            +INF         1395.7050      
-s2.t14.natgas             .         38848.9209        +INF             .          
+s2.t14.natgas             .          6991.3813        +INF             .          
 s2.t14.biogas             .              .            +INF           34.9964      
 s2.t14.biochar            .              .            +INF          216.5791      
 s2.t15.oil                .              .            +INF          397.8284      
@@ -7414,7 +7411,7 @@ s2.t24.woodchips          .              .            +INF          119.9568
 s2.t24.coke               .              .            +INF          288.1619      
 s2.t24.COgas              .              .            +INF          619.2986      
 s2.t24.hydrogen           .              .            +INF         1395.7050      
-s2.t24.natgas             .         38848.9209        +INF             .          
+s2.t24.natgas             .         19776.6906        +INF             .          
 s2.t24.biogas             .              .            +INF           34.9964      
 s2.t24.biochar            .              .            +INF          216.5791      
 s2.t25.oil                .              .            +INF          403.8597      
@@ -7423,7 +7420,7 @@ s2.t25.woodchips          .              .            +INF          119.9568
 s2.t25.coke               .              .            +INF          288.1619      
 s2.t25.COgas              .              .            +INF          619.2986      
 s2.t25.hydrogen           .              .            +INF         1395.7050      
-s2.t25.natgas             .         38848.9209        +INF             .          
+s2.t25.natgas             .         21055.2410        +INF             .          
 s2.t25.biogas             .              .            +INF           34.9964      
 s2.t25.biochar            .              .            +INF          216.5791      
 s2.t26.oil                .              .            +INF          403.8597      
@@ -7432,7 +7429,7 @@ s2.t26.woodchips          .              .            +INF          119.9568
 s2.t26.coke               .              .            +INF          288.1619      
 s2.t26.COgas              .              .            +INF          619.2986      
 s2.t26.hydrogen           .              .            +INF         1395.7050      
-s2.t26.natgas             .         38848.9209        +INF             .          
+s2.t26.natgas             .         22333.7590        +INF             .          
 s2.t26.biogas             .              .            +INF           34.9964      
 s2.t26.biochar            .              .            +INF          216.5791      
 s2.t27.oil                .              .            +INF          403.8597      
@@ -7441,7 +7438,7 @@ s2.t27.woodchips          .              .            +INF          119.9568
 s2.t27.coke               .              .            +INF          288.1619      
 s2.t27.COgas              .              .            +INF          619.2986      
 s2.t27.hydrogen           .              .            +INF         1395.7050      
-s2.t27.natgas             .         38848.9209        +INF             .          
+s2.t27.natgas             .         23612.3094        +INF             .          
 s2.t27.biogas             .              .            +INF           34.9964      
 s2.t27.biochar            .              .            +INF          216.5791      
 s2.t28.oil                .              .            +INF          403.8597      
@@ -7450,7 +7447,7 @@ s2.t28.woodchips          .              .            +INF          119.9568
 s2.t28.coke               .              .            +INF          288.1619      
 s2.t28.COgas              .              .            +INF          619.2986      
 s2.t28.hydrogen           .              .            +INF         1395.7050      
-s2.t28.natgas             .         38848.9209        +INF             .          
+s2.t28.natgas             .         24890.8273        +INF             .          
 s2.t28.biogas             .              .            +INF           34.9964      
 s2.t28.biochar            .              .            +INF          216.5791      
 s2.t29.oil                .              .            +INF          403.8597      
@@ -7459,7 +7456,7 @@ s2.t29.woodchips          .              .            +INF          119.9568
 s2.t29.coke               .              .            +INF          288.1619      
 s2.t29.COgas              .              .            +INF          619.2986      
 s2.t29.hydrogen           .              .            +INF         1395.7050      
-s2.t29.natgas             .         38848.9209        +INF             .          
+s2.t29.natgas             .         26169.3453        +INF             .          
 s2.t29.biogas             .              .            +INF           34.9964      
 s2.t29.biochar            .              .            +INF          216.5791      
 s2.t30.oil                .              .            +INF          403.8597      
@@ -7468,7 +7465,7 @@ s2.t30.woodchips          .              .            +INF          119.9568
 s2.t30.coke               .              .            +INF          288.1619      
 s2.t30.COgas              .              .            +INF          619.2986      
 s2.t30.hydrogen           .              .            +INF         1395.7050      
-s2.t30.natgas             .         38848.9209        +INF             .          
+s2.t30.natgas             .         27447.8957        +INF             .          
 s2.t30.biogas             .              .            +INF           34.9964      
 s2.t30.biochar            .              .            +INF          216.5791      
 
@@ -7765,7 +7762,7 @@ s1.t6           .              .            +INF             .
 s1.t7           .          7900.0380        +INF             .          
 s1.t8           .          7900.0380        +INF             .          
 s1.t9           .          7900.0380        +INF             .          
-s1.t10          .          4768.7940        +INF             .          
+s1.t10          .          7900.0380        +INF             .          
 s1.t11          .          7900.0380        +INF             .          
 s1.t12          .          7900.0380        +INF             .          
 s1.t13          .          7900.0380        +INF             .          
@@ -7795,7 +7792,7 @@ s2.t6           .              .            +INF             .
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .              .            +INF             .          
-s2.t10          .          3131.2440        +INF             .          
+s2.t10          .              .            +INF             .          
 s2.t11          .              .            +INF             .          
 s2.t12          .              .            +INF             .          
 s2.t13          .              .            +INF             .          
@@ -7857,19 +7854,19 @@ t30          .          7900.0380        +INF             .
               LOWER          LEVEL          UPPER         MARGINAL
 
 s1.t1           .         53504.3344        +INF             .          
-s1.t2           .              .            +INF             .          
+s1.t2           .         65797.1158        +INF             .          
 s1.t3           .         54186.5991        +INF             .          
 s1.t4           .         23168.1561        +INF             .          
 s1.t5           .         48941.3072        +INF             .          
-s1.t6           .              .            +INF             .          
+s1.t6           .         68447.5058        +INF             .          
 s1.t7           .         64727.1699        +INF             .          
 s1.t8           .         65294.2865        +INF             .          
 s1.t9           .         66517.9692        +INF             .          
-s1.t10          .         67869.5853        +INF             .          
+s1.t10          .         66517.9692        +INF             .          
 s1.t11          .         66517.9692        +INF             .          
 s1.t12          .         66517.9692        +INF             .          
 s1.t13          .         66517.9692        +INF             .          
-s1.t14          .          9174.3980        +INF             .          
+s1.t14          .         66517.9692        +INF             .          
 s1.t15          .         66517.9692        +INF             .          
 s1.t16          .         66517.9692        +INF             .          
 s1.t17          .         66517.9692        +INF             .          
@@ -7879,27 +7876,27 @@ s1.t20          .         66517.9692        +INF             .
 s1.t21          .         66517.9692        +INF             .          
 s1.t22          .         66517.9692        +INF             .          
 s1.t23          .         66517.9692        +INF             .          
-s1.t24          .         32187.9548        +INF             .          
-s1.t25          .         34489.3455        +INF             .          
-s1.t26          .         36790.6778        +INF             .          
-s1.t27          .         39092.0685        +INF             .          
-s1.t28          .         41393.4009        +INF             .          
-s1.t29          .         43694.7332        +INF             .          
-s1.t30          .         45996.1239        +INF             .          
+s1.t24          .         66517.9692        +INF             .          
+s1.t25          .         66517.9692        +INF             .          
+s1.t26          .         66517.9692        +INF             .          
+s1.t27          .         66517.9692        +INF             .          
+s1.t28          .         66517.9692        +INF             .          
+s1.t29          .         66517.9692        +INF             .          
+s1.t30          .         66517.9692        +INF             .          
 s2.t1           .          9945.8676        +INF             .          
-s2.t2           .         65797.1158        +INF             .          
+s2.t2           .              .            +INF             .          
 s2.t3           .              .            +INF             .          
 s2.t4           .              .            +INF             .          
 s2.t5           .              .            +INF             .          
-s2.t6           .         68447.5058        +INF             .          
+s2.t6           .              .            +INF             .          
 s2.t7           .              .            +INF             .          
 s2.t8           .              .            +INF             .          
 s2.t9           .          1077.7079        +INF             .          
-s2.t10          .          2027.4242        +INF             .          
+s2.t10          .          3379.0403        +INF             .          
 s2.t11          .          5680.4309        +INF             .          
 s2.t12          .          7981.7633        +INF             .          
 s2.t13          .         10283.1540        +INF             .          
-s2.t14          .         69928.0576        +INF             .          
+s2.t14          .         12584.4863        +INF             .          
 s2.t15          .         14885.8187        +INF             .          
 s2.t16          .         17187.2094        +INF             .          
 s2.t17          .         19488.5417        +INF             .          
@@ -7909,13 +7906,13 @@ s2.t20          .         26392.6554        +INF             .
 s2.t21          .         28693.9878        +INF             .          
 s2.t22          .         30995.3201        +INF             .          
 s2.t23          .         33296.7108        +INF             .          
-s2.t24          .         69928.0576        +INF             .          
-s2.t25          .         69928.0576        +INF             .          
-s2.t26          .         69928.0576        +INF             .          
-s2.t27          .         69928.0576        +INF             .          
-s2.t28          .         69928.0576        +INF             .          
-s2.t29          .         69928.0576        +INF             .          
-s2.t30          .         69928.0576        +INF             .          
+s2.t24          .         35598.0432        +INF             .          
+s2.t25          .         37899.4338        +INF             .          
+s2.t26          .         40200.7662        +INF             .          
+s2.t27          .         42502.1568        +INF             .          
+s2.t28          .         44803.4892        +INF             .          
+s2.t29          .         47104.8216        +INF             .          
+s2.t30          .         49406.2122        +INF             .          
 
 ---- VAR uTotalCoke_SAF  total coke in SAF (t fuel)
 
@@ -8030,32 +8027,32 @@ t1           .              .            +INF            EPS
 t2           .              .            +INF            EPS         
 t3           .              .            +INF            EPS         
 t4           .              .            +INF            EPS         
-t5           .              .            +INF           50.0000      
+t5           .              .            +INF            EPS         
 t6           .              .            +INF            EPS         
 t7           .              .            +INF            EPS         
 t8           .              .            +INF            EPS         
 t9           .              .            +INF            EPS         
-t10          .              .            +INF           50.0000      
+t10          .              .            +INF            EPS         
 t11          .              .            +INF            EPS         
 t12          .              .            +INF            EPS         
 t13          .              .            +INF            EPS         
 t14          .              .            +INF            EPS         
-t15          .              .            +INF           50.0000      
+t15          .              .            +INF            EPS         
 t16          .              .            +INF            EPS         
 t17          .              .            +INF            EPS         
 t18          .              .            +INF            EPS         
 t19          .              .            +INF            EPS         
-t20          .              .            +INF           50.0000      
+t20          .              .            +INF            EPS         
 t21          .              .            +INF            EPS         
 t22          .              .            +INF            EPS         
 t23          .              .            +INF            EPS         
 t24          .              .            +INF            EPS         
-t25          .              .            +INF           50.0000      
+t25          .              .            +INF            EPS         
 t26          .              .            +INF            EPS         
 t27          .              .            +INF            EPS         
 t28          .              .            +INF            EPS         
 t29          .              .            +INF            EPS         
-t30          .              .            +INF           50.0000      
+t30          .              .            +INF            EPS         
 
 ---- VAR biocap  available biocarbon capacity in period t (t fuel per period)
 
@@ -8411,36 +8408,36 @@ t30          .        362657.9704        +INF             .
 
            LOWER          LEVEL          UPPER         MARGINAL
 
-t1           .              .            +INF           50.0000      
-t2           .              .            +INF           67.0000      
-t3           .              .            +INF           84.0000      
-t4           .              .            +INF          101.0000      
-t5           .              .            +INF          118.0000      
-t6           .              .            +INF          135.0000      
-t7           .              .            +INF          152.0000      
-t8           .              .            +INF          169.0000      
-t9           .              .            +INF          186.0000      
-t10          .              .            +INF          203.0000      
-t11          .              .            +INF          220.0000      
-t12          .              .            +INF          237.0000      
-t13          .              .            +INF          254.0000      
-t14          .              .            +INF          271.0000      
-t15          .              .            +INF          288.0000      
-t16          .              .            +INF          305.0000      
-t17          .              .            +INF          322.0000      
-t18          .              .            +INF          339.0000      
-t19          .              .            +INF          356.0000      
-t20          .              .            +INF          373.0000      
-t21          .              .            +INF          390.0000      
-t22          .              .            +INF          407.0000      
-t23          .              .            +INF          424.0000      
-t24          .              .            +INF          441.0000      
-t25          .              .            +INF          458.0000      
-t26          .              .            +INF          475.0000      
-t27          .              .            +INF          492.0000      
-t28          .              .            +INF          509.0000      
-t29          .              .            +INF          526.0000      
-t30          .              .            +INF          543.0000      
+t1           .              .            +INF           35.0000      
+t2           .              .            +INF           35.0000      
+t3           .              .            +INF           35.0000      
+t4           .              .            +INF           35.0000      
+t5           .              .            +INF           35.0000      
+t6           .              .            +INF           35.0000      
+t7           .              .            +INF           35.0000      
+t8           .              .            +INF           35.0000      
+t9           .              .            +INF           35.0000      
+t10          .              .            +INF           35.0000      
+t11          .              .            +INF           35.0000      
+t12          .              .            +INF           35.0000      
+t13          .              .            +INF           35.0000      
+t14          .              .            +INF           35.0000      
+t15          .              .            +INF           35.0000      
+t16          .              .            +INF           35.0000      
+t17          .              .            +INF           35.0000      
+t18          .              .            +INF           35.0000      
+t19          .              .            +INF           35.0000      
+t20          .              .            +INF           35.0000      
+t21          .              .            +INF           35.0000      
+t22          .              .            +INF           35.0000      
+t23          .              .            +INF           35.0000      
+t24          .              .            +INF           35.0000      
+t25          .              .            +INF           35.0000      
+t26          .              .            +INF           35.0000      
+t27          .              .            +INF           35.0000      
+t28          .              .            +INF           35.0000      
+t29          .              .            +INF           35.0000      
+t30          .              .            +INF           35.0000      
 
                            LOWER          LEVEL          UPPER         MARGINAL
 
@@ -8452,73 +8449,73 @@ t30          .              .            +INF          543.0000
 **** REPORT SUMMARY :        0     NONOPT
                              0 INFEASIBLE
                              0  UNBOUNDED
-GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/19/25 15:46:25 Page 7
+GAMS 39.1.1  dbf03b78 May 18, 2022          WEX-WEI x86 64bit/MS Windows - 11/24/25 09:39:15 Page 7
 FeMn / SiMn production & energy system with CCS (u_fuel in tonnes, phi in kWh/t)
 E x e c u t i o n
 
 
-----    655 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
+----    653 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
 
 t1  219840.000,    t2  114918.408,    t3  108057.718,    t4   41548.803,    t5   85478.779,    t6  119547.465,    t7  147534.426,    t8  148524.927,    t9  152544.437,    t10 156563.845,    t11 160583.355,    t12 164602.763,    t13 168622.272,    t14 172641.680,    t15 176661.088,    t16 180680.598,    t17 184700.006,    t18 188719.516,    t19 192738.924,    t20 196758.434,    t21 200777.842,    t22 204797.250,    t23 208816.760,    t24 212836.168,    t25 216855.677,    t26 219840.000,    t27 219840.000,    t28 219840.000,    t29 219840.000,    t30 219840.000
 
 
-----    655 VARIABLE CO2_offgas_pot.L  CO2 with potential to be emitted from off-gas before CCS (t per period)
+----    653 VARIABLE CO2_offgas_pot.L  CO2 with potential to be emitted from off-gas before CCS (t per period)
 
 t1   95175.303,    t2   98695.674,    t3   81279.899,    t4   34752.234,    t5   73411.961,    t6  102671.259,    t7   97090.755,    t8   97941.430,    t9  101393.516,    t10 104845.514,    t11 108297.600,    t12 111749.599,    t13 115201.685,    t14 118653.683,    t15 122105.682,    t16 125557.768,    t17 129009.766,    t18 132461.852,    t19 135913.851,    t20 139365.937,    t21 142817.935,    t22 146269.934,    t23 149722.020,    t24 153174.019,    t25 156626.105,    t26 160078.103,    t27 163530.189,    t28 166982.188,    t29 170434.186,    t30 173886.272
 
 
-----    655 VARIABLE CO2_atm_offgas.L  Residual off-gas CO2 to atmosphere after CCS (t per period)
+----    653 VARIABLE CO2_atm_offgas.L  Residual off-gas CO2 to atmosphere after CCS (t per period)
 
 t1   95175.303,    t2   98695.674,    t3   81279.899,    t4   34752.234,    t5   73411.961,    t6  102671.259,    t7   97090.755,    t8   97941.430,    t9  101393.516,    t10  10484.551,    t11  10829.760,    t12  11174.960,    t13  11520.168,    t14  14972.167,    t15  12210.568,    t16  12555.777,    t17  12900.977,    t18  13246.185,    t19  13591.385,    t20  13936.594,    t21  14281.794,    t22  14626.993,    t23  14972.202,    t24  18424.201,    t25  21876.287,    t26  25328.285,    t27  28780.371,    t28  32232.370,    t29  35684.368,    t30 142817.970
 
 
-----    699 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
+----    706 VARIABLE CO2_coke_sint.L  CO2 from sinter (t)
 
 t1  2.198400E+5,    t2  1.149184E+5,    t3  1.080577E+5,    t4  4.154880E+4,    t5  8.547878E+4,    t6  1.195475E+5,    t7  1.475344E+5,    t8  1.485249E+5,    t9  1.525444E+5,    t10 1.565638E+5,    t11 1.605834E+5,    t12 1.646028E+5,    t13 1.686223E+5,    t14 1.726417E+5,    t15 1.766611E+5,    t16 1.806806E+5,    t17 1.847000E+5,    t18 1.887195E+5,    t19 1.927389E+5,    t20 1.967584E+5,    t21 2.007778E+5,    t22 2.047972E+5,    t23 2.088168E+5,    t24 2.128362E+5,    t25 2.168557E+5,    t26 2.198400E+5,    t27 2.198400E+5,    t28 2.198400E+5,    t29 2.198400E+5,    t30 2.198400E+5
 
 
-----    699 VARIABLE CO2_offgas.L  CO2 from off-gas flaring (t)
+----    706 VARIABLE CO2_offgas.L  CO2 from off-gas flaring (t)
 
 t1  9.517530E+4,    t2  9.869567E+4,    t3  8.127990E+4,    t4  3.475223E+4,    t5  7.341196E+4,    t6  1.026713E+5,    t7  9.709075E+4,    t8  9.794143E+4,    t9  1.013935E+5,    t10 1.048455E+5,    t11 1.082976E+5,    t12 1.117496E+5,    t13 1.152017E+5,    t14 1.186537E+5,    t15 1.221057E+5,    t16 1.255578E+5,    t17 1.290098E+5,    t18 1.324619E+5,    t19 1.359139E+5,    t20 1.393659E+5,    t21 1.428179E+5,    t22 1.462699E+5,    t23 1.497220E+5,    t24 1.531740E+5,    t25 1.566261E+5,    t26 1.600781E+5,    t27 1.635302E+5,    t28 1.669822E+5,    t29 1.704342E+5,    t30 1.738863E+5
 
 
-----    705 PARAMETER CO2_total  Total CO2 per period (t, net)
+----    712 PARAMETER CO2_total  Total CO2 per period (t, net)
 
 t1  3.150153E+5,    t2  2.136141E+5,    t3  1.893376E+5,    t4  7.630104E+4,    t5  1.588907E+5,    t6  2.222187E+5,    t7  2.446252E+5,    t8  2.464664E+5,    t9  2.539380E+5,    t10 1.670484E+5,    t11 1.714131E+5,    t12 1.757777E+5,    t13 1.801424E+5,    t14 1.876138E+5,    t15 1.888717E+5,    t16 1.932364E+5,    t17 1.976010E+5,    t18 2.019657E+5,    t19 2.063303E+5,    t20 2.106950E+5,    t21 2.150596E+5,    t22 2.194242E+5,    t23 2.237890E+5,    t24 2.312604E+5,    t25 2.387320E+5,    t26 2.451683E+5,    t27 2.486204E+5,    t28 2.520724E+5,    t29 2.555244E+5,    t30 3.626580E+5
 
 
-----    705 PARAMETER CO2_total_all        =  6.493411E+6  Total CO2 over all periods (t, net)
+----    712 PARAMETER CO2_total_all        =  6.493411E+6  Total CO2 over all periods (t, net)
 
-----    732 PARAMETER ProdTot  Total FeMn+SiMn (t)
+----    729 PARAMETER ProdTot  Total FeMn+SiMn (t)
 
 t1  1.370676E+5,    t2  1.129111E+5,    t3  9.526380E+4,    t4  3.994170E+4,    t5  8.398570E+4,    t6  1.174593E+5,    t7  1.169269E+5,    t8  1.179001E+5,    t9  1.218494E+5,    t10 1.257986E+5,    t11 1.297479E+5,    t12 1.336971E+5,    t13 1.376464E+5,    t14 1.415956E+5,    t15 1.455448E+5,    t16 1.494941E+5,    t17 1.534433E+5,    t18 1.573926E+5,    t19 1.613418E+5,    t20 1.652911E+5,    t21 1.692403E+5,    t22 1.731895E+5,    t23 1.771388E+5,    t24 1.810880E+5,    t25 1.850373E+5,    t26 1.889865E+5,    t27 1.929358E+5,    t28 1.968850E+5,    t29 2.008342E+5,    t30 2.047835E+5
 
 
-----    732 PARAMETER OffgasProd  Off-gas produced per SAF (t)
+----    729 PARAMETER OffgasProd  Off-gas produced per SAF (t)
 
             t1          t2          t3          t4          t5          t6          t7          t8          t9         t10         t11         t12         t13         t14         t15         t16         t17         t18         t19         t20         t21         t22         t23         t24         t25         t26         t27         t28         t29         t30
 
-s1 5.350433E+4             5.418660E+4 2.316816E+4 4.894131E+4             6.472717E+4 6.529429E+4 6.651797E+4 6.786959E+4 6.651797E+4 6.651797E+4 6.651797E+4 9174.397986 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 3.218795E+4 3.448935E+4 3.679068E+4 3.909207E+4 4.139340E+4 4.369473E+4 4.599612E+4
-s2 9945.867626 6.579712E+4                                     6.844751E+4                         1077.707914 2027.424173 5680.430935 7981.763309 1.028315E+4 6.992806E+4 1.488582E+4 1.718721E+4 1.948854E+4 2.178993E+4 2.409126E+4 2.639266E+4 2.869399E+4 3.099532E+4 3.329671E+4 6.992806E+4 6.992806E+4 6.992806E+4 6.992806E+4 6.992806E+4 6.992806E+4 6.992806E+4
+s1 5.350433E+4 6.579712E+4 5.418660E+4 2.316816E+4 4.894131E+4 6.844751E+4 6.472717E+4 6.529429E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4 6.651797E+4
+s2 9945.867626                                                                                     1077.707914 3379.040288 5680.430935 7981.763309 1.028315E+4 1.258449E+4 1.488582E+4 1.718721E+4 1.948854E+4 2.178993E+4 2.409126E+4 2.639266E+4 2.869399E+4 3.099532E+4 3.329671E+4 3.559804E+4 3.789943E+4 4.020077E+4 4.250216E+4 4.480349E+4 4.710482E+4 4.940621E+4
 
 
-----    732 PARAMETER OffgasFlared  Flared off-gas (t)
+----    729 PARAMETER OffgasFlared  Flared off-gas (t)
 
 t1  6.345020E+4,    t2  6.579712E+4,    t3  5.418660E+4,    t4  2.316816E+4,    t5  4.894131E+4,    t6  6.844751E+4,    t7  6.472717E+4,    t8  6.529429E+4,    t9  6.759568E+4,    t10 6.989701E+4,    t11 7.219840E+4,    t12 7.449973E+4,    t13 7.680112E+4,    t14 7.910246E+4,    t15 8.140379E+4,    t16 8.370518E+4,    t17 8.600651E+4,    t18 8.830790E+4,    t19 9.060923E+4,    t20 9.291062E+4,    t21 9.521196E+4,    t22 9.751329E+4,    t23 9.981468E+4,    t24 1.021160E+5,    t25 1.044174E+5,    t26 1.067187E+5,    t27 1.090201E+5,    t28 1.113215E+5,    t29 1.136228E+5,    t30 1.159242E+5
 
 
-----    732 PARAMETER ETS_cost  ETS cost per period (eur)
+----    729 PARAMETER ETS_cost  ETS cost per period (eur)
 
                       ( ALL    0.000000 )
 
 
-----    732 PARAMETER CO2_intensity  CO2 intensity vs total product (t CO2/t product)
+----    729 PARAMETER CO2_intensity  CO2 intensity vs total product (t CO2/t product)
 
 t1  2.298248,    t2  1.891878,    t3  1.987509,    t4  1.910310,    t5  1.891878,    t6  1.891878,    t7  2.092121,    t8  2.090468,    t9  2.084031,    t10 1.327903,    t11 1.321124,    t12 1.314746,    t13 1.308733,    t14 1.324998,    t15 1.297687,    t16 1.292602,    t17 1.287779,    t18 1.283197,    t19 1.278840,    t20 1.274691,    t21 1.270735,    t22 1.266960,    t23 1.263354,    t24 1.277061,    t25 1.290183,    t26 1.297279,    t27 1.288617,    t28 1.280303,    t29 1.272315,    t30 1.770934
 
 
 
-EXECUTION TIME       =        0.063 SECONDS      5 MB  39.1.1 dbf03b78 WEX-WEI
+EXECUTION TIME       =        0.734 SECONDS      5 MB  39.1.1 dbf03b78 WEX-WEI
 
 
 USER: Small MUD - 5 User License                     S240604|0002AP-GEN
@@ -8528,5 +8525,5 @@ USER: Small MUD - 5 User License                     S240604|0002AP-GEN
 
 **** FILE SUMMARY
 
-Input      C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms
-Output     C:\Users\Nicolas\OneDrive\Documents\NTNU Fall 2025\Semesteroppgave\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.lst
+Input      C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.gms
+Output     C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\ChatPT_GAMS_code_v7_full_changes.lst
