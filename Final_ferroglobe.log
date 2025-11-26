@@ -1,5 +1,5 @@
 
---- Job Final_ferroglobe.gms Start 11/26/25 11:44:23 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
+--- Job Final_ferroglobe.gms Start 11/26/25 16:42:13 39.1.1 dbf03b78 WEX-WEI x86 64bit/MS Windows
 --- Applying:
     C:\GAMS\39\gmsprmNT.txt
 --- GAMS Parameters defined
@@ -19,12 +19,12 @@ Licensee: Small MUD - 5 User License                     S240604|0002AP-GEN
 Processor information: 1 socket(s), 10 core(s), and 20 thread(s) available
 GAMS 39.1.1   Copyright (C) 1987-2022 GAMS Development. All rights reserved
 --- Starting compilation
---- Final_ferroglobe.gms(465) 3 Mb
---- Starting execution: elapsed 0:00:00.004
---- Final_ferroglobe.gms(449) 4 Mb
+--- Final_ferroglobe.gms(474) 3 Mb
+--- Starting execution: elapsed 0:00:00.005
+--- Final_ferroglobe.gms(458) 4 Mb
 --- Generating LP model production_model
---- Final_ferroglobe.gms(458) 5 Mb
----   1,867 rows  3,092 columns  7,633 non-zeroes
+--- Final_ferroglobe.gms(467) 5 Mb
+---   1,927 rows  3,122 columns  7,893 non-zeroes
 --- Range statistics (absolute non-zero finite values)
 --- RHS       [min, max] : [ 4.600E+02, 1.902E+05] - Zero values observed as well
 --- Bound     [min, max] : [ 2.500E+05, 1.000E+13] - Zero values observed as well
@@ -37,7 +37,7 @@ IBM ILOG CPLEX   39.1.1 dbf03b78 May 18, 2022          WEI x86 64bit/MS Window
 --- GMO setup time: 0.00s
 --- Space for names approximately 0.15 Mb
 --- Use option 'names no' to turn use of names off
---- GMO memory 1.07 Mb (peak 1.10 Mb)
+--- GMO memory 1.08 Mb (peak 1.11 Mb)
 --- Dictionary memory 0.00 Mb
 --- Cplex 22.1.0.0 link memory 0.08 Mb (peak 0.38 Mb)
 --- Starting Cplex
@@ -49,27 +49,29 @@ CPXPARAM_MIP_Display                             4
 CPXPARAM_MIP_Pool_Capacity                       0
 CPXPARAM_MIP_Tolerances_AbsMIPGap                0
 Tried aggregator 1 time.
-LP Presolve eliminated 1264 rows and 2296 columns.
-Aggregator did 179 substitutions.
-Reduced LP has 423 rows, 617 columns, and 1446 nonzeros.
-Presolve time = 0.02 sec. (2.51 ticks)
+LP Presolve eliminated 1009 rows and 1427 columns.
+Aggregator did 506 substitutions.
+Reduced LP has 411 rows, 1189 columns, and 4117 nonzeros.
+Presolve time = 0.00 sec. (3.19 ticks)
 Initializing dual steep norms . . .
 
 Iteration log . . .
-Iteration:     1   Dual objective     =      35447689.538462
-Iteration:    94   Dual objective     =    1755645562.847087
-Iteration:   190   Dual objective     =    2033711890.685180
+Iteration:     1   Scaled dual infeas =           319.000000
+Iteration:    84   Scaled dual infeas =           153.154929
+Iteration:   149   Scaled dual infeas =             0.000000
+Iteration:   150   Dual objective     = -55716167230096.460938
+Iteration:   218   Dual objective     =    -108476622.187281
 
 --- LP status (1): optimal.
---- Cplex Time: 0.02sec (det. 4.26 ticks)
+--- Cplex Time: 0.00sec (det. 5.96 ticks)
 
 
 Optimal solution found
-Objective:   2165392428.011489
+Objective:   -107442158.685838
 
 --- Reading solution for model production_model
---- Executing after solve: elapsed 0:00:00.057
---- Final_ferroglobe.gms(460) 5 Mb
+--- Executing after solve: elapsed 0:00:00.059
+--- Final_ferroglobe.gms(469) 5 Mb
 --- GDX File (execute_unload) C:\Users\karl\Documents\NTNU9\Master\Prosjektoppgave_dekarbonisering_i_Mo_industripark\Kl4rkus_results.gdx
 *** Status: Normal completion
---- Job Final_ferroglobe.gms Stop 11/26/25 11:44:23 elapsed 0:00:00.058
+--- Job Final_ferroglobe.gms Stop 11/26/25 16:42:13 elapsed 0:00:00.060

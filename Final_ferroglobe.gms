@@ -93,9 +93,9 @@ PARAMETER
     HTR(h)          'Conversion rate of high heat fuel h to heat'
     C_Mat(m, t)     'Cost of material m bought (per ton) in period t'
     C_Elec(t)       'Price of electricity at time t'
-    C_Carbon(t)     'Price of the carbon tax (per ton) in period t'
+    C_carbon(t)     'Price of the carbon tax (per ton) in period t'
     C_Invest(f, q)  'Price of an investment f at time q'
-    offgas_coef(p) 'percentage of carbon emission that ere in offgas form'
+    offgas_coef(p) 'percentage of carbon emission that are in offgas form'
     Lifetime(f)            'Lifetime of an investment f'
     Overflow_cost(m) 'cost of getting rid of overflowing materials.'
     R               'Discount rate'                                 /0.4/
@@ -278,9 +278,9 @@ C_Mat('hydrogen', t) = 5000;
 C_Elec(t) = 0.01;
 
 * Carbon tax !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-C_Carbon('t1') = 115;
+C_carbon('t1') = 11;
 LOOP(t$(ORD(t) > 1),
-    C_carbon(t) = C_carbon(t-1) + 17;
+    C_carbon(t) = C_carbon(t-1) + 0;
 );
 
 
@@ -336,13 +336,14 @@ VARIABLE
     w_max(f, q)     'Max usage of machine f at investment period q'
     w(p, t)         'Usage of process p at time t (unit is in tons of final produce of p)'
     o(m, p, t)      'Output m made with process p at time t'
-    c(p,t)
+    c(p,t)            'carbon output from process p'
     tc(t)            'Carbon emissions at time t'
     i(m, p, t)      'Input m consumed by process p at time t'
     g(m, t)         'Input material m purchased at time t'
     b(h, p, t)      'High heat fuel h in process p at time t'
     u(l, p, t)      'Low heat fuel l in process p at time t'
     overflow(m, t)        'Overflow of material m at time t'
+    captured_carbon  'Carbon captured by CCS'
 ;
 
 * Positive variables
@@ -367,6 +368,8 @@ EQUATION
     capacity(f, t) 'Capacity constraint: max usage depends on investments'
     opex_cost            'Total operational cost'
     overflow_costs     'Costs caused by overflows'
+    carbon_capture(t)    'calculates carbon captured by CCS'
+    max_carbon_capture(t) 'ensures that the carbon captures does not surpass the max capacity'
 ;
 
 * Variables for cost components
@@ -399,7 +402,7 @@ cost_elec..
 
 * Carbon tax
 cost_carbon..
-    costs_carbon =E= sum(t, tc(t) * C_Carbon(t));
+    costs_carbon =E= sum(t, (tc(t)-captured_carbon(t) * C_Carbon(t)));
     
 * Costs due to material overflows. 
 overflow_costs..
@@ -416,7 +419,7 @@ balance(m, t)..
     g(m, t) + sum(p$M_output(p, m), o(m, p, t)) =E= D(m, t) + sum(p$M_input(p, m), i(m, p, t)) + overflow(m, t);
 * Heat constraint
 heat(p, t)..
-    sum(l, u(l, p, t) * LTR(l)) + sum(h, b(h, p, t) * HTR(h)) =G= w(p, t) * TH(p);
+    sum(l, u(l, p, t) * LTR(l)) + sum(h, b(h, p, t) * HTR(h)) =E= w(p, t) * TH(p);
 * High heat constraint
 high_heat(p, t)..
     sum(h, b(h, p, t) * HTR(h)) =G= w(p, t) * TH(p) * HT(p);
@@ -437,12 +440,18 @@ offgas_out(p,t)..
     o('off-gas',p,t) =E=  sum(h, b(h, p, t) * HEF(h, p)*(offgas_coef(p))) + sum(l, u(l, p, t) * LEF(l, p))*(offgas_coef(p));
     
 total_carbon(t)..
-    tc(t) =E= sum(p, c(p,t)) + w('flaring', t);
+    tc(t) =E= sum(p, c(p,t)) + w('flaring', t); 
     
 * Capacity constraint
 capacity(f, t)..
     sum(p$P_f(f, p), w(p, t)) =L= sum(q$(ord(q) <= ord(t)), w_max(f, q));
-    
+
+* Carbon capture:
+carbon_capture(t)..
+    captured_carbon(t) =L= tc(t) * capture_rate; 
+
+max_carbon_capture(t)..
+    captured_carbon(t) =L= sum(q$(ord(q) <= ord(t)), w_max('CCS', q));
 
 *fixing variables:
 w_max.FX('sinter', 't5') = 250000;
@@ -458,8 +467,8 @@ MODEL production_model /all/;
 SOLVE production_model USING LP MINIMIZING z;
 
 execute_unload 'Kl4rkus_results.gdx',
-    z, w_max, w, o, c, tc, i, g, b, u, overflow,
-    D, Y, LEF, HEF, PRODUCE, E, TH, HT, LTR, HTR, C_Mat, C_Elec, C_Carbon, C_Invest, offgas_coef, R,
+    z, w_max, w, o, c, tc, i, g, b, u, overflow, captured_carbon,
+    D, Y, LEF, HEF, PRODUCE, E, TH, HT, LTR, HTR, C_Mat, C_Elec, C_carbon, C_Invest, offgas_coef, R,
     costs_mat, costs_elec, costs_carbon, costs_overflow, OPEX, CAPEX;
 
     
